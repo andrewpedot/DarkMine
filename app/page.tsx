@@ -180,8 +180,6 @@ function VideoCard({ card }: { card: any }) {
   );
   const [isChecking, setIsChecking] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
-  const [statusPt, setStatusPt] = useState<string | null>(card.statusPt || null);
-  const [statusEs, setStatusEs] = useState<string | null>(card.statusEs || null);
 
   useEffect(() => {
       const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
@@ -252,41 +250,27 @@ function VideoCard({ card }: { card: any }) {
         setTranslatedTitle(translatedTitle);
         
         const result = await checkMarket(translatedTitle, market.region, market.lang);
-        
-        // Atualiza também os status individuais para compatibilidade
-        if (market.code === 'es') {
-            setStatusEs(result);
-        } else if (market.code === 'pt') {
-            setStatusPt(result);
-        }
-        
-        // Adiciona ao histórico de mercados analisados
         const status = result === 'Oceano Azul' ? 'blue_ocean' : 'saturated';
         setAnalyzedMarkets(prev => {
-            const exists = prev.find(m => m.langCode === market.code.toUpperCase());
+            const exists = prev.find(m => m.langCode === market.code);
             if (exists) {
-                return prev.map(m => m.langCode === market.code.toUpperCase() ? { ...m, status } : m);
+                return prev.map(m => m.langCode === market.code ? { ...m, status } : m);
             }
-            return [...prev, { langCode: market.code.toUpperCase(), status }];
+            return [...prev, { langCode: market.code, status }];
         });
         
         return result;
     } catch (e) {
         console.error(e);
         const result = 'Saturado';
-        if (market.code === 'es') {
-            setStatusEs(result);
-        } else if (market.code === 'pt') {
-            setStatusPt(result);
-        }
         
         // Adiciona erro como saturado
         setAnalyzedMarkets(prev => {
-            const exists = prev.find(m => m.langCode === market.code.toUpperCase());
+            const exists = prev.find(m => m.langCode === market.code);
             if (exists) {
-                return prev.map(m => m.langCode === market.code.toUpperCase() ? { ...m, status: 'saturated' } : m);
+                return prev.map(m => m.langCode === market.code ? { ...m, status: 'saturated' } : m);
             }
-            return [...prev, { langCode: market.code.toUpperCase(), status: 'saturated' }];
+            return [...prev, { langCode: market.code, status: 'saturated' }];
         });
         
         return result;
@@ -298,17 +282,15 @@ function VideoCard({ card }: { card: any }) {
 
   let targetMarket = 'Brasil (PT-BR)';
   let btnText = 'Gerar Estrutura de Roteiro';
-  if (statusPt || statusEs) {
-      if (statusPt === 'Oceano Azul' && statusEs !== 'Oceano Azul') {
-          targetMarket = 'Brasil (PT-BR)';
-          btnText = 'Clonar para Brasil';
-      } else if (statusEs === 'Oceano Azul' && statusPt !== 'Oceano Azul') {
-          targetMarket = 'México (ES-MX)';
-          btnText = 'Clonar para México';
-      } else {
-          targetMarket = 'Brasil (PT-BR)';
-          btnText = 'Clonar para Brasil';
-      }
+  
+  // Define mercado alvo baseado no primeiro Oceano Azul encontrado
+  const blueOceanMarket = analyzedMarkets.find(m => m.status === 'blue_ocean');
+  if (blueOceanMarket) {
+    const marketInfo = MARKETS.find(m => m.code === blueOceanMarket.langCode);
+    if (marketInfo) {
+      targetMarket = `${marketInfo.label} (${marketInfo.code.toUpperCase()})`;
+      btnText = `Clonar para ${marketInfo.label}`;
+    }
   }
 
   const handleTranslate = async (e: any) => {
@@ -441,26 +423,8 @@ function VideoCard({ card }: { card: any }) {
               {isTranslating ? 'Traduzindo...' : showPtBR ? '🇧🇷 PT-BR (clique para EN)' : '🌐 Ver título em PT-BR'}
             </button>
           </div>
-           <ScoreRing score={card.score} />
+          <ScoreRing score={card.score} />
          </div>
-
-         {/* Market Tags */}
-         {analyzedMarkets.length > 0 && (
-           <div className="flex flex-wrap gap-1.5">
-             {analyzedMarkets.map((market) => (
-               <span
-                 key={market.langCode}
-                 className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1 transition-all
-                   ${market.status === 'blue_ocean' 
-                     ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]' 
-                     : 'bg-red-900/10 border-red-500/20 text-red-400/70'
-                   }`}
-               >
-                 #{market.langCode}
-               </span>
-             ))}
-           </div>
-         )}
 
          {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 mt-auto">
@@ -516,9 +480,27 @@ function VideoCard({ card }: { card: any }) {
               <div className="text-[11px] text-gray-200 font-semibold font-mono">{card.channelCreatedAt}</div>
             </div>
           </div>
-        </div>
+         </div>
 
-        {/* CTR + VPH row */}
+         {/* Market Tags */}
+         {analyzedMarkets.length > 0 && (
+           <div className="flex flex-wrap gap-1.5 mt-3">
+             {analyzedMarkets.map((market) => (
+               <span
+                 key={market.langCode}
+                 className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-all
+                   ${market.status === 'blue_ocean' 
+                     ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300' 
+                     : 'bg-red-900/10 border-red-500/20 text-red-400/70'
+                   }`}
+               >
+                 #{market.langCode}
+               </span>
+             ))}
+           </div>
+         )}
+
+         {/* CTR + VPH row */}
         <div className="flex items-center justify-between border-t border-white/5 pt-3">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -592,30 +574,7 @@ function VideoCard({ card }: { card: any }) {
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
-            
-            {(statusPt || statusEs) && (
-                <div className="flex items-center justify-center gap-3 py-1">
-                    {statusPt && (
-                        <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all duration-500
-                            ${statusPt === 'Oceano Azul' 
-                                ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse' 
-                                : 'bg-red-900/10 border-red-500/20 text-red-400/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
-                            }`}>
-                            🇧🇷 {statusPt}
-                        </div>
-                    )}
-                    {statusPt && statusEs && <div className="w-px h-3 bg-white/10" />}
-                    {statusEs && (
-                        <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all duration-500
-                            ${statusEs === 'Oceano Azul' 
-                                ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse' 
-                                : 'bg-red-900/10 border-red-500/20 text-red-400/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
-                            }`}>
-                            🇲🇽 {statusEs}
-                        </div>
-                    )}
-                </div>
-            )}
+             
             
             <button
                 id={`gerar-roteiro-${card.id}`}

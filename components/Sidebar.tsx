@@ -71,6 +71,27 @@ export function Sidebar() {
                     );
                 })}
             </div>
+
+            <div className="p-3 mb-4">
+                <form action={async () => {
+                    // Import inside to avoid client/server issues or use a separate client component
+                    // Actually, let's use a standard POST form to a route or just use the action
+                    const { logout } = await import('../app/actions/auth');
+                    await logout();
+                }}>
+                    <button type="submit" className="w-full flex items-center gap-4 px-2.5 py-3 rounded-xl transition-all duration-200 whitespace-nowrap overflow-hidden text-red-500/70 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20">
+                        <div className="flex-shrink-0">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </div>
+                        <span className="text-sm font-semibold tracking-wide transition-opacity duration-300 opacity-0 group-hover:opacity-100">
+                            Sair do Sistema
+                        </span>
+                    </button>
+                </form>
+            </div>
         </aside>
     );
 }
+

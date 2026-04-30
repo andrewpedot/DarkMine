@@ -27,7 +27,6 @@ export default function LibraryPage() {
                 
                 if (error) throw error;
                 
-                // Carrega dados do localStorage para combinar analyzedMarkets
                 const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
                 const projectsWithMarkets = (data || []).map((project: any) => {
                     const localCard = lib.find((c: any) => c.id === project.id);
@@ -40,7 +39,6 @@ export default function LibraryPage() {
                 setProjects(projectsWithMarkets);
             } catch (error) {
                 console.error('Erro ao buscar projetos:', error);
-                // Fallback para localStorage se Supabase falhar
                 const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
                 setProjects(lib);
             } finally {
@@ -90,16 +88,11 @@ export default function LibraryPage() {
     const onDragEnd = async (result: any) => {
         if (!result.destination) return;
         const { source, destination, draggableId } = result;
-
-        // Se soltou no mesmo lugar, não faz nada
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-
+        
         const newStatus = destination.droppableId;
-
-        // Atualização otimista — move o card na UI imediatamente
         setProjects(prev => prev.map(p => p.id === draggableId ? { ...p, status: newStatus } : p));
-
-        // Persiste no Supabase em background
+        
         try {
             if (!supabase) throw new Error('Supabase não configurado');
             const { error } = await supabase
@@ -109,7 +102,6 @@ export default function LibraryPage() {
             if (error) throw error;
         } catch (e) {
             console.error('Erro ao mover card:', e);
-            // Rollback — reverte para o status anterior
             setProjects(prev => prev.map(p => p.id === draggableId ? { ...p, status: source.droppableId } : p));
         }
     };
@@ -135,10 +127,8 @@ export default function LibraryPage() {
 
     return (
         <div className="min-h-screen grid-bg relative text-gray-200">
-            {/* Ambient glow blobs */}
             <div className="fixed top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%)', filter: 'blur(40px)' }} />
-
-            {/* HEADER */}
+            
             <header className="sticky top-0 z-50 border-b border-white/5" style={{ background: 'rgba(8,11,18,0.85)', backdropFilter: 'blur(20px)' }}>
                 <div className="max-w-[1800px] w-full mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -152,11 +142,10 @@ export default function LibraryPage() {
                             <span className="ml-2 text-[10px] font-mono text-orange-500/70 uppercase tracking-widest hidden sm:inline">Biblioteca</span>
                         </div>
                     </div>
-
                     <div className="flex items-center gap-3">
                         <Link href="/" className="relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-300 border border-white/10 transition-all hover:border-purple-500/40 hover:text-purple-300 hover:bg-purple-950/20">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1 1v4a1 1 0 001 1h3m-6 0h6" />
                             </svg>
                             Voltar à Mineração
                         </Link>
@@ -164,7 +153,6 @@ export default function LibraryPage() {
                 </div>
             </header>
 
-            {/* MAIN CONTENT */}
             <main className="max-w-[1800px] w-full mx-auto px-6 py-10">
                 <div className="flex items-center justify-between mb-8">
                     <div>
@@ -208,59 +196,54 @@ export default function LibraryPage() {
                                                                 style={provided.draggableProps.style}
                                                                 className={`bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 transition-colors ${['produzido', 'publicado'].includes(col.id) ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-white/20'} ${snapshot.isDragging ? 'shadow-2xl bg-gray-900 border-white/20 z-[9999]' : ''}`}
                                                             >
-                                                                        <div className="flex flex-col gap-2 relative">
-                                                                         {/* Line 1: Tags & Delete */}
-                                                                         <div className="flex items-center justify-between">
-                                                                             <div className="flex items-center gap-2 flex-wrap">
-                                                                                 <span className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${targetMarket.includes('Brasil') ? 'border-cyan-500/30 text-cyan-400 bg-cyan-900/20' : 'border-red-500/30 text-red-400 bg-red-900/20'}`}>
-                                                                                     {targetMarket.includes('Brasil') ? '🇧🇷 PT-BR' : '🇲🇽 ES-MX'}
-                                                                                 </span>
-                                                                                 {/* Market Analysis Tags */}
-                                                                                 {project.analyzedMarkets?.map((market: any) => (
-                                                                                     <span
-                                                                                         key={market.langCode}
-                                                                                         className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border inline-flex items-center gap-1
-                                                                                             ${market.status === 'blue_ocean' 
-                                                                                                 ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300' 
-                                                                                                 : 'bg-red-900/10 border-red-500/20 text-red-400/70'
-                                                                                             }`}
-                                                                                     >
-                                                                                         #{market.langCode}
-                                                                                     </span>
-                                                                                 ))}
-                                                                             </div>
-                                                                            </div>
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    confirmDeleteProject(project.id, titleFinal || titleOriginal);
-                                                                                }}
-                                                                                className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                                                                                title="Excluir projeto"
-                                                                            >
-                                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                                            </button>
+                                                                <div className="flex flex-col gap-2 relative">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <span className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${targetMarket.includes('Brasil') ? 'border-cyan-500/30 text-cyan-400 bg-cyan-900/20' : 'border-red-500/30 text-red-400 bg-red-900/20'}`}>
+                                                                                {targetMarket.includes('Brasil') ? '🇧🇷 PT-BR' : '🇲🇽 ES-MX'}
+                                                                            </span>
+                                                                            {project.analyzedMarkets?.map((market: any) => (
+                                                                                <span
+                                                                                    key={market.langCode}
+                                                                                    className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border inline-flex items-center gap-1
+                                                                                        ${market.status === 'blue_ocean' 
+                                                                                            ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300' 
+                                                                                            : 'bg-red-900/10 border-red-500/20 text-red-400/70'
+                                                                                        }`}
+                                                                                >
+                                                                                    #{market.langCode}
+                                                                                </span>
+                                                                            ))}
                                                                         </div>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                confirmDeleteProject(project.id, titleFinal || titleOriginal);
+                                                                            }}
+                                                                            className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                                                            title="Excluir projeto"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
 
-                                                                        {/* Line 2: Title */}
-                                                                        <h3 className={`text-sm line-clamp-2 leading-tight ${titleFinal ? 'text-emerald-300 font-bold' : 'font-medium text-gray-200'}`} title={titleFinal || titleOriginal}>
-                                                                            {titleFinal ? `✨ ${titleFinal}` : titleOriginal}
-                                                                        </h3>
+                                                                    <h3 className={`text-sm line-clamp-2 leading-tight ${titleFinal ? 'text-emerald-300 font-bold' : 'font-medium text-gray-200'}`} title={titleFinal || titleOriginal}>
+                                                                        {titleFinal ? `✨ ${titleFinal}` : titleOriginal}
+                                                                    </h3>
 
-                                                                        {/* Actions */}
-                                                                        <div className="flex gap-2 mt-2">
-                                                                            <Link href={`/hook?title=${encodeURIComponent(titleOriginal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-colors">
-                                                                                🎣 Hook
+                                                                    <div className="flex gap-2 mt-2">
+                                                                        <Link href={`/hook?title=${encodeURIComponent(titleOriginal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-colors">
+                                                                            🎣 Hook
+                                                                        </Link>
+                                                                        {titleFinal && (
+                                                                            <Link href={`/script?title=${encodeURIComponent(titleFinal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-violet-900/30 text-violet-300 hover:text-white border border-violet-500/30 hover:bg-violet-800/50 transition-colors">
+                                                                                📝 Script
                                                                             </Link>
-                                                                            {titleFinal && (
-                                                                                <Link href={`/script?title=${encodeURIComponent(titleFinal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-violet-900/30 text-violet-300 hover:text-white border border-violet-500/30 hover:bg-violet-800/50 transition-colors">
-                                                                                    📝 Script
-                                                                                </Link>
-                                                                            )}
-                                                                        </div>
+                                                                        )}
                                                                     </div>
                                                                 </div>
-                                                            )}
+                                                            </div>
+                                                        )}
                                                     </Draggable>
                                                 );
                                             })}
@@ -279,24 +262,19 @@ export default function LibraryPage() {
                 </DragDropContext>
             </main>
 
-            {/* Custom Delete Confirmation Modal */}
             {projectToDelete && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-[#0f111a] border border-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.15)] rounded-2xl w-full max-w-md p-6 relative overflow-hidden m-4">
-                        {/* Ambient background for modal */}
                         <div className="absolute -top-24 -right-24 w-48 h-48 bg-red-500/10 rounded-full blur-[40px] pointer-events-none" />
-                        
                         <div className="flex items-center gap-4 mb-4 relative z-10">
                             <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0 text-red-500">
                                 <Trash2 className="w-5 h-5" />
                             </div>
                             <h3 className="text-lg font-bold text-white">Excluir Projeto</h3>
                         </div>
-                        
                         <p className="text-gray-400 text-sm mb-6 relative z-10">
                             Tem certeza que deseja excluir o projeto <span className="text-gray-200 font-semibold">"{projectToDelete.title}"</span>? Esta ação não pode ser desfeita.
                         </p>
-                        
                         <div className="flex items-center justify-end gap-3 relative z-10">
                             <button 
                                 onClick={() => setProjectToDelete(null)}

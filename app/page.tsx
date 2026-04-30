@@ -180,6 +180,8 @@ function VideoCard({ card }: { card: any }) {
   );
   const [isChecking, setIsChecking] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
+  const [statusPt, setStatusPt] = useState<string | null>(card.statusPt || null);
+  const [statusEs, setStatusEs] = useState<string | null>(card.statusEs || null);
 
   useEffect(() => {
       const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
@@ -251,6 +253,7 @@ function VideoCard({ card }: { card: any }) {
         
         const result = await checkMarket(translatedTitle, market.region, market.lang);
         
+        // Atualiza também os status individuais para compatibilidade
         if (market.code === 'es') {
             setStatusEs(result);
         } else if (market.code === 'pt') {
@@ -544,9 +547,9 @@ function VideoCard({ card }: { card: any }) {
                             className={`w-full py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest border transition-all flex items-center justify-center gap-2
                                 ${isChecking 
                                     ? 'border-purple-500/40 bg-purple-950/20 text-purple-300' 
-                                    : lastResult === 'Oceano Azul'
-                                    ? 'border-cyan-400/50 bg-cyan-900/20 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)]'
-                                    : lastResult === 'Saturado'
+                                    : analyzedMarkets.filter(m => m.status === 'blue_ocean').length > 0
+                                    ? 'border-cyan-400/50 bg-cyan-900/20 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]'
+                                    : analyzedMarkets.filter(m => m.status === 'saturated').length > 0
                                     ? 'border-red-500/30 bg-red-900/10 text-red-400/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
                                     : 'border-white/10 text-gray-400 hover:text-white hover:border-purple-500/40 hover:bg-purple-950/20'
                                 }`}

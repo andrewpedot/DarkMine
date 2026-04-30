@@ -6,6 +6,10 @@ import { Trash2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../../lib/supabase';
 
+interface ProjectWithMarkets extends Record<string, any> {
+  analyzedMarkets?: Array<{ langCode: string; status: string }>;
+}
+
 export default function LibraryPage() {
     const [projects, setProjects] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,10 +26,23 @@ export default function LibraryPage() {
                     .order('created_at', { ascending: false });
                 
                 if (error) throw error;
-                setProjects(data || []);
+                
+                // Carrega dados do localStorage para combinar analyzedMarkets
+                const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+                const projectsWithMarkets = (data || []).map((project: any) => {
+                    const localCard = lib.find((c: any) => c.id === project.id);
+                    return {
+                        ...project,
+                        analyzedMarkets: localCard?.analyzedMarkets || []
+                    };
+                });
+                
+                setProjects(projectsWithMarkets);
             } catch (error) {
                 console.error('Erro ao buscar projetos:', error);
-                setProjects([]);
+                // Fallback para localStorage se Supabase falhar
+                const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+                setProjects(lib);
             } finally {
                 setLoading(false);
             }
@@ -191,13 +208,27 @@ export default function LibraryPage() {
                                                                 style={provided.draggableProps.style}
                                                                 className={`bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 transition-colors ${['produzido', 'publicado'].includes(col.id) ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-white/20'} ${snapshot.isDragging ? 'shadow-2xl bg-gray-900 border-white/20 z-[9999]' : ''}`}
                                                             >
-                                                                    <div className="flex flex-col gap-2 relative">
-                                                                        {/* Line 1: Tags & Delete */}
-                                                                        <div className="flex items-center justify-between">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${targetMarket.includes('Brasil') ? 'border-cyan-500/30 text-cyan-400 bg-cyan-900/20' : 'border-red-500/30 text-red-400 bg-red-900/20'}`}>
-                                                                                    {targetMarket.includes('Brasil') ? '🇧🇷 PT-BR' : '🇲🇽 ES-MX'}
-                                                                                </span>
+                                                                        <div className="flex flex-col gap-2 relative">
+                                                                         {/* Line 1: Tags & Delete */}
+                                                                         <div className="flex items-center justify-between">
+                                                                             <div className="flex items-center gap-2 flex-wrap">
+                                                                                 <span className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${targetMarket.includes('Brasil') ? 'border-cyan-500/30 text-cyan-400 bg-cyan-900/20' : 'border-red-500/30 text-red-400 bg-red-900/20'}`}>
+                                                                                     {targetMarket.includes('Brasil') ? '🇧🇷 PT-BR' : '🇲🇽 ES-MX'}
+                                                                                 </span>
+                                                                                 {/* Market Analysis Tags */}
+                                                                                 {project.analyzedMarkets?.map((market: any) => (
+                                                                                     <span
+                                                                                         key={market.langCode}
+                                                                                         className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border inline-flex items-center gap-1
+                                                                                             ${market.status === 'blue_ocean' 
+                                                                                                 ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300' 
+                                                                                                 : 'bg-red-900/10 border-red-500/20 text-red-400/70'
+                                                                                             }`}
+                                                                                     >
+                                                                                         #{market.langCode}
+                                                                                     </span>
+                                                                                 ))}
+                                                                             </div>
                                                                             </div>
                                                                             <button
                                                                                 onClick={(e) => {

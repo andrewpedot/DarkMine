@@ -163,6 +163,11 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+interface AnalyzedMarket {
+  langCode: string;
+  status: 'blue_ocean' | 'saturated';
+}
+
 function VideoCard({ card }: { card: any }) {
   const [hovered, setHovered] = useState(false);
   const [clicked, setClicked] = useState(false);
@@ -170,11 +175,11 @@ function VideoCard({ card }: { card: any }) {
   const [translatedTitle, setTranslatedTitle] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [statusPt, setStatusPt] = useState(card.statusPt || null);
-  const [statusEs, setStatusEs] = useState(card.statusEs || null);
+  const [analyzedMarkets, setAnalyzedMarkets] = useState<AnalyzedMarket[]>(
+    card.analyzedMarkets || []
+  );
   const [isChecking, setIsChecking] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
-  const [lastResult, setLastResult] = useState<'Oceano Azul' | 'Saturado' | null>(null);
 
   useEffect(() => {
       const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
@@ -187,12 +192,12 @@ function VideoCard({ card }: { card: any }) {
       e.stopPropagation();
       const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
       if (saved) {
-          const newLib = lib.filter((c: any) => c.id !== card.id);
+          const newLib = lib.map((c: any) => c.id === card.id ? { ...c, analyzedMarkets: analyzedMarkets } : c);
           localStorage.setItem('darkmine_library', JSON.stringify(newLib));
           setSaved(false);
           window.dispatchEvent(new Event('libraryUpdated'));
       } else {
-          const newCard = { ...card, libraryStatus: 'Pendente' };
+          const newCard = { ...card, libraryStatus: 'Pendente', analyzedMarkets };
           lib.push(newCard);
           localStorage.setItem('darkmine_library', JSON.stringify(lib));
           setSaved(true);
@@ -252,22 +257,15 @@ function VideoCard({ card }: { card: any }) {
             setStatusPt(result);
         }
         
-        setLastResult(result);
-        
-        if (result === 'Oceano Azul') {
-            toast({
-                title: `🌊 Oceano Azul em ${market.label}!`,
-                description: 'Baixa concorrência detectada.',
-                variant: 'default',
-                className: 'border-cyan-500/50 bg-cyan-950/90 text-cyan-100',
-            });
-        } else {
-            toast({
-                title: `🔴 Mercado Saturado em ${market.label}`,
-                description: 'Alta concorrência detectada.',
-                variant: 'destructive',
-            });
-        }
+        // Adiciona ao histórico de mercados analisados
+        const status = result === 'Oceano Azul' ? 'blue_ocean' : 'saturated';
+        setAnalyzedMarkets(prev => {
+            const exists = prev.find(m => m.langCode === market.code.toUpperCase());
+            if (exists) {
+                return prev.map(m => m.langCode === market.code.toUpperCase() ? { ...m, status } : m);
+            }
+            return [...prev, { langCode: market.code.toUpperCase(), status }];
+        });
         
         return result;
     } catch (e) {
@@ -279,12 +277,13 @@ function VideoCard({ card }: { card: any }) {
             setStatusPt(result);
         }
         
-        setLastResult(result);
-        
-        toast({
-            title: `⚠️ Erro ao verificar ${market.label}`,
-            description: 'Tente novamente em alguns instantes.',
-            variant: 'destructive',
+        // Adiciona erro como saturado
+        setAnalyzedMarkets(prev => {
+            const exists = prev.find(m => m.langCode === market.code.toUpperCase());
+            if (exists) {
+                return prev.map(m => m.langCode === market.code.toUpperCase() ? { ...m, status: 'saturated' } : m);
+            }
+            return [...prev, { langCode: market.code.toUpperCase(), status: 'saturated' }];
         });
         
         return result;
@@ -439,10 +438,28 @@ function VideoCard({ card }: { card: any }) {
               {isTranslating ? 'Traduzindo...' : showPtBR ? '🇧🇷 PT-BR (clique para EN)' : '🌐 Ver título em PT-BR'}
             </button>
           </div>
-          <ScoreRing score={card.score} />
-        </div>
+           <ScoreRing score={card.score} />
+         </div>
 
-        {/* Stats grid */}
+         {/* Market Tags */}
+         {analyzedMarkets.length > 0 && (
+           <div className="flex flex-wrap gap-1.5">
+             {analyzedMarkets.map((market) => (
+               <span
+                 key={market.langCode}
+                 className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1 transition-all
+                   ${market.status === 'blue_ocean' 
+                     ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]' 
+                     : 'bg-red-900/10 border-red-500/20 text-red-400/70'
+                   }`}
+               >
+                 #{market.langCode}
+               </span>
+             ))}
+           </div>
+         )}
+
+         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 mt-auto">
           {/* Canal + external link */}
           <div className="stat-pill flex items-center gap-1.5">

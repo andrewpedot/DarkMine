@@ -298,12 +298,18 @@ export default function DarkHookPage() {
                                             >
                                                 ✅ Concluir
                                             </button>
-                                            <button
-                                                onClick={() => handleSaveAndComplete(item.titulo, true)}
-                                                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-emerald-600/90 border border-emerald-500 text-white hover:bg-emerald-500 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                                            >
-                                                ✍️ Gerar Roteiro
-                                            </button>
+                                             <button
+                                                 onClick={() => handleSaveAndComplete(item.titulo, true)}
+                                                 className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-emerald-600/90 border border-emerald-500 text-white hover:bg-emerald-500 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                             >
+                                                 ✍️ Gerar Roteiro
+                                             </button>
+                                             <Link
+                                                 href={`/thumbnail?title=${encodeURIComponent(item.titulo)}`}
+                                                 className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-amber-600/90 border border-amber-500 text-white hover:bg-amber-500 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                                             >
+                                                 🎨 Thumbnail
+                                             </Link>
                                         </div>
 
                                         {/* Expanded Prompt Area */}

@@ -100,7 +100,9 @@ export default function LibraryPage() {
     const columns = [
         { id: 'hook', title: '📥 Mineração', color: 'border-orange-500/30' },
         { id: 'script', title: '⏳ Títulos Prontos', color: 'border-purple-500/30' },
-        { id: 'produzido', title: '✅ Roteiros Finalizados', color: 'border-emerald-500/30' }
+        { id: 'produzido', title: '✅ Roteiros Finalizados', color: 'border-emerald-500/30' },
+        { id: 'edicao', title: '🎬 Edição de Vídeo', color: 'border-blue-500/30' },
+        { id: 'publicado', title: '🚀 Publicado', color: 'border-rose-500/30' }
     ];
 
     if (loading) {
@@ -121,7 +123,7 @@ export default function LibraryPage() {
 
             {/* HEADER */}
             <header className="sticky top-0 z-50 border-b border-white/5" style={{ background: 'rgba(8,11,18,0.85)', backdropFilter: 'blur(20px)' }}>
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="max-w-[1800px] w-full mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', boxShadow: '0 0 16px rgba(249,115,22,0.4)' }}>
                             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -146,7 +148,7 @@ export default function LibraryPage() {
             </header>
 
             {/* MAIN CONTENT */}
-            <main className="max-w-7xl mx-auto px-6 py-10">
+            <main className="max-w-[1800px] w-full mx-auto px-6 py-10">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-2xl font-black text-white flex items-center gap-3">
@@ -157,14 +159,14 @@ export default function LibraryPage() {
                 </div>
 
                 <DragDropContext onDragEnd={onDragEnd}>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-nowrap overflow-x-auto pb-8 gap-6 items-start" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
                         {columns.map(col => (
                             <Droppable key={col.id} droppableId={col.id}>
                                 {(provided, snapshot) => (
                                     <div 
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        className={`rounded-2xl p-4 kanban-column border flex flex-col gap-4 min-h-[500px] transition-colors duration-300 ${col.color} ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}
+                                        className={`rounded-2xl p-4 kanban-column border flex flex-col gap-4 min-h-[500px] min-w-[320px] max-w-[350px] flex-shrink-0 transition-colors duration-300 ${col.color} ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}
                                     >
                                         <div className="flex items-center justify-between border-b border-white/10 pb-3">
                                             <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-300">{col.title}</h2>
@@ -187,7 +189,7 @@ export default function LibraryPage() {
                                                                 {...provided.draggableProps}
                                                                 {...provided.dragHandleProps}
                                                                 style={provided.draggableProps.style}
-                                                                className={`bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 transition-colors ${col.id === 'produzido' ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-white/20'} ${snapshot.isDragging ? 'shadow-2xl bg-gray-900 border-white/20 z-[9999]' : ''}`}
+                                                                className={`bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 transition-colors ${['produzido', 'publicado'].includes(col.id) ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-white/20'} ${snapshot.isDragging ? 'shadow-2xl bg-gray-900 border-white/20 z-[9999]' : ''}`}
                                                             >
                                                                     <div className="flex flex-col gap-2 relative">
                                                                         {/* Line 1: Tags & Delete */}

@@ -82,6 +82,18 @@ const THUMBNAIL_ICONS: Record<string, string> = {
   default: "📹",
 };
 
+const MARKETS = [
+  { code: 'de', label: 'Alemão', flag: '🇩🇪', region: 'DE', lang: 'de' },
+  { code: 'fr', label: 'Francês', flag: '🇫🇷', region: 'FR', lang: 'fr' },
+  { code: 'es', label: 'Espanhol', flag: '🇪🇸', region: 'ES', lang: 'es' },
+  { code: 'it', label: 'Italiano', flag: '🇮🇹', region: 'IT', lang: 'it' },
+  { code: 'pl', label: 'Polonês', flag: '🇵🇱', region: 'PL', lang: 'pl' },
+  { code: 'hu', label: 'Húngaro', flag: '🇭🇺', region: 'HU', lang: 'hu' },
+  { code: 'el', label: 'Grego', flag: '🇬🇷', region: 'GR', lang: 'el' },
+  { code: 'cs', label: 'Tcheco', flag: '🇨🇿', region: 'CZ', lang: 'cs' },
+  { code: 'he', label: 'Hebraico', flag: '🇮🇱', region: 'IL', lang: 'he' },
+];
+
 function parseDuration(pt: string) {
   if (!pt) return "N/A";
   const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
@@ -153,6 +165,8 @@ function VideoCard({ card }: { card: any }) {
   const [statusPt, setStatusPt] = useState(card.statusPt || null);
   const [statusEs, setStatusEs] = useState(card.statusEs || null);
   const [isChecking, setIsChecking] = useState(false);
+  const [showMarketDropdown, setShowMarketDropdown] = useState(false);
+  const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
 
   useEffect(() => {
       const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
@@ -178,62 +192,88 @@ function VideoCard({ card }: { card: any }) {
       }
   };
 
-  const handleCheckCompetition = async () => {
+  const checkMarket = async (translatedTitle: string, region: string, lang: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    const now = new Date();
+    const originalVph = card.vphRaw;
+
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(translatedTitle)}&type=video&regionCode=${region}&relevanceLanguage=${lang}&key=${apiKey}`);
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) return 'Oceano Azul';
+    
+    const vIds = data.items.map((i: any) => i.id.videoId).join(',');
+    const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${vIds}&key=${apiKey}`);
+    const vData = await vRes.json();
+    
+    let hasRecentHighVph = false;
+    
+    for (const v of vData.items || []) {
+        const pub = new Date(v.snippet.publishedAt);
+        const hours = Math.max((now.getTime() - pub.getTime()) / (1000 * 60 * 60), 1);
+        const views = parseInt(v.statistics.viewCount || '0', 10);
+        const vph = views / hours;
+        
+        if (hours < 24 * 365 && vph >= originalVph * 0.1) {
+            hasRecentHighVph = true;
+        }
+    }
+    
+    if (hasRecentHighVph) return 'Saturado';
+    return 'Oceano Azul';
+  };
+
+  const handleCheckMarket = async (market: typeof MARKETS[0]) => {
     setIsChecking(true);
+    setSelectedMarket(market.code);
+    setShowMarketDropdown(false);
+    
     try {
-        const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
-        if (!apiKey) throw new Error("API Key missing");
-        const now = new Date();
-        const originalVph = card.vphRaw;
-
-        const checkMarket = async (translatedTitle: string, region: string, lang: string) => {
-            const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(translatedTitle)}&type=video&regionCode=${region}&relevanceLanguage=${lang}&key=${apiKey}`);
-            const data = await res.json();
-            if (!data.items || data.items.length === 0) return 'Oceano Azul';
-            
-            const vIds = data.items.map((i: any) => i.id.videoId).join(',');
-            const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${vIds}&key=${apiKey}`);
-            const vData = await vRes.json();
-            
-            let hasRecentHighVph = false;
-            
-            for (const v of vData.items || []) {
-                const pub = new Date(v.snippet.publishedAt);
-                const hours = Math.max((now.getTime() - pub.getTime()) / (1000 * 60 * 60), 1);
-                const views = parseInt(v.statistics.viewCount || '0', 10);
-                const vph = views / hours;
-                
-                if (hours < 24 * 365 && vph >= originalVph * 0.1) {
-                    hasRecentHighVph = true;
-                }
-            }
-            
-            if (hasRecentHighVph) return 'Saturado';
-            return 'Oceano Azul';
-        };
-
-        const titlePtRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=${encodeURIComponent(card.title)}`).catch(()=>null);
-        const titlePtData = titlePtRes ? await titlePtRes.json().catch(()=>null) : null;
-        const titlePt = titlePtData ? titlePtData[0].map((item: any) => item[0]).join('') : card.title;
-        setTranslatedTitle(titlePt);
+        const translatedTitleRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${market.lang}&dt=t&q=${encodeURIComponent(card.title)}`).catch(()=>null);
+        const translatedTitleData = translatedTitleRes ? await translatedTitleRes.json().catch(()=>null) : null;
+        const translatedTitle = translatedTitleData ? translatedTitleData[0].map((item: any) => item[0]).join('') : card.title;
         
-        const titleEsRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=es&dt=t&q=${encodeURIComponent(card.title)}`).catch(()=>null);
-        const titleEsData = titleEsRes ? await titleEsRes.json().catch(()=>null) : null;
-        const titleEs = titleEsData ? titleEsData[0].map((item: any) => item[0]).join('') : card.title;
-
-        const ptResult = await checkMarket(titlePt, 'BR', 'pt');
-        const esResult = await checkMarket(titleEs, 'MX', 'es');
+        setTranslatedTitle(translatedTitle);
         
-        setStatusPt(ptResult);
-        setStatusEs(esResult);
+        const result = await checkMarket(translatedTitle, market.region, market.lang);
+        
+        if (market.code === 'es') {
+            setStatusEs(result);
+        } else if (market.code === 'pt') {
+            setStatusPt(result);
+        }
+        
+        return result;
     } catch (e) {
         console.error(e);
-        setStatusPt('Saturado');
-        setStatusEs('Saturado');
+        const result = 'Saturado';
+        if (market.code === 'es') {
+            setStatusEs(result);
+        } else if (market.code === 'pt') {
+            setStatusPt(result);
+        }
+        return result;
     } finally {
         setIsChecking(false);
+        setSelectedMarket(null);
     }
   };
+
+  // Função para fechar dropdown ao clicar fora
+  useEffect(() => {
+      if (!showMarketDropdown) return;
+      
+      const handleClickOutside = (e: MouseEvent) => {
+          const target = e.target as HTMLElement;
+          const cardElement = document.querySelector(`[data-card-id="${card.id}"]`);
+          if (cardElement && !cardElement.contains(target)) {
+              setShowMarketDropdown(false);
+          }
+      };
+      
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMarketDropdown, card.id]);
 
   let targetMarket = 'Brasil (PT-BR)';
   let btnText = 'Gerar Estrutura de Roteiro';
@@ -280,7 +320,8 @@ function VideoCard({ card }: { card: any }) {
 
   return (
     <div
-      className="video-card rounded-2xl overflow-hidden neon-border-purple card-glass flex flex-col"
+      data-card-id={card.id}
+      className="video-card rounded-2xl neon-border-purple card-glass flex flex-col relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -462,23 +503,48 @@ function VideoCard({ card }: { card: any }) {
         {/* Dynamic Action Section */}
         <div className="mt-auto flex flex-col gap-2 pt-2">
             {!statusPt && !statusEs ? (
-                <button
-                    onClick={handleCheckCompetition}
-                    disabled={isChecking}
-                    className="w-full py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-2"
-                >
-                    {isChecking ? (
-                       <>
-                         <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                         Analisando APIs...
-                       </>
-                    ) : (
-                       <>
-                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                         Verificar Competição (PT/ES)
-                       </>
+                <div className="relative">
+                    <button
+                        onClick={() => setShowMarketDropdown(!showMarketDropdown)}
+                        disabled={isChecking}
+                        className="w-full py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-white/10 text-gray-400 hover:text-white hover:border-purple-500/40 hover:bg-purple-950/20 transition-all flex items-center justify-center gap-2"
+                    >
+                        {isChecking ? (
+                           <>
+                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                             Analisando {selectedMarket && MARKETS.find(m => m.code === selectedMarket)?.label}...
+                           </>
+                        ) : (
+                           <>
+                             <span>🌍</span>
+                             Analisar Mercados
+                             <svg className={`w-3 h-3 transition-transform ${showMarketDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                             </svg>
+                           </>
+                        )}
+                    </button>
+                    
+                    {showMarketDropdown && (
+                        <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 overflow-hidden z-50" style={{ background: 'rgba(13,17,23,0.98)', backdropFilter: 'blur(20px)', boxShadow: '0 0 30px rgba(168,85,247,0.15)' }}>
+                            <div className="px-3 py-2 border-b border-white/5">
+                                <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Idiomas Alto RPM</span>
+                            </div>
+                            {MARKETS.map((market) => (
+                                <button
+                                    key={market.code}
+                                    onClick={() => handleCheckMarket(market)}
+                                    disabled={isChecking}
+                                    className="w-full px-3 py-2.5 text-left hover:bg-purple-950/30 transition-all flex items-center gap-2.5 group disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <span className="text-base">{market.flag}</span>
+                                    <span className="text-xs font-mono text-gray-300 group-hover:text-white transition-colors">{market.label}</span>
+                                    <span className="ml-auto text-[9px] font-mono text-gray-600 uppercase">{market.code}</span>
+                                </button>
+                            ))}
+                        </div>
                     )}
-                </button>
+                </div>
             ) : (
                 <div className="flex items-center justify-center gap-3 py-1">
                     <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 ${statusPt === 'Oceano Azul' ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]' : 'bg-red-900/10 border-red-500/20 text-red-400/70'}`}>

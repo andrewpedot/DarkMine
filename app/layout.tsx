@@ -1,6 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Sidebar } from '../components/Sidebar';
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/toaster";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: 'DarkMine — Inteligência de Mercado para Criadores Dark YouTube',
@@ -14,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" className={cn("dark", "font-sans", geist.variable)}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -28,6 +33,7 @@ export default function RootLayout({
         <main className="pl-16">
           {children}
         </main>
+        <Toaster />
       </body>
     </html>
   );

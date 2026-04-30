@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 
 
@@ -165,8 +173,8 @@ function VideoCard({ card }: { card: any }) {
   const [statusPt, setStatusPt] = useState(card.statusPt || null);
   const [statusEs, setStatusEs] = useState(card.statusEs || null);
   const [isChecking, setIsChecking] = useState(false);
-  const [showMarketDropdown, setShowMarketDropdown] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<'Oceano Azul' | 'Saturado' | null>(null);
 
   useEffect(() => {
       const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
@@ -223,10 +231,11 @@ function VideoCard({ card }: { card: any }) {
     return 'Oceano Azul';
   };
 
+  const { toast } = useToast();
+
   const handleCheckMarket = async (market: typeof MARKETS[0]) => {
     setIsChecking(true);
     setSelectedMarket(market.code);
-    setShowMarketDropdown(false);
     
     try {
         const translatedTitleRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${market.lang}&dt=t&q=${encodeURIComponent(card.title)}`).catch(()=>null);
@@ -243,6 +252,23 @@ function VideoCard({ card }: { card: any }) {
             setStatusPt(result);
         }
         
+        setLastResult(result);
+        
+        if (result === 'Oceano Azul') {
+            toast({
+                title: `🌊 Oceano Azul em ${market.label}!`,
+                description: 'Baixa concorrência detectada.',
+                variant: 'default',
+                className: 'border-cyan-500/50 bg-cyan-950/90 text-cyan-100',
+            });
+        } else {
+            toast({
+                title: `🔴 Mercado Saturado em ${market.label}`,
+                description: 'Alta concorrência detectada.',
+                variant: 'destructive',
+            });
+        }
+        
         return result;
     } catch (e) {
         console.error(e);
@@ -252,28 +278,21 @@ function VideoCard({ card }: { card: any }) {
         } else if (market.code === 'pt') {
             setStatusPt(result);
         }
+        
+        setLastResult(result);
+        
+        toast({
+            title: `⚠️ Erro ao verificar ${market.label}`,
+            description: 'Tente novamente em alguns instantes.',
+            variant: 'destructive',
+        });
+        
         return result;
     } finally {
         setIsChecking(false);
         setSelectedMarket(null);
     }
   };
-
-  // Função para fechar dropdown ao clicar fora
-  useEffect(() => {
-      if (!showMarketDropdown) return;
-      
-      const handleClickOutside = (e: MouseEvent) => {
-          const target = e.target as HTMLElement;
-          const cardElement = document.querySelector(`[data-card-id="${card.id}"]`);
-          if (cardElement && !cardElement.contains(target)) {
-              setShowMarketDropdown(false);
-          }
-      };
-      
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMarketDropdown, card.id]);
 
   let targetMarket = 'Brasil (PT-BR)';
   let btnText = 'Gerar Estrutura de Roteiro';
@@ -320,7 +339,6 @@ function VideoCard({ card }: { card: any }) {
 
   return (
     <div
-      data-card-id={card.id}
       className="video-card rounded-2xl neon-border-purple card-glass flex flex-col relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -502,58 +520,80 @@ function VideoCard({ card }: { card: any }) {
 
         {/* Dynamic Action Section */}
         <div className="mt-auto flex flex-col gap-2 pt-2">
-            {!statusPt && !statusEs ? (
-                <div className="relative">
-                    <button
-                        onClick={() => setShowMarketDropdown(!showMarketDropdown)}
-                        disabled={isChecking}
-                        className="w-full py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest border border-white/10 text-gray-400 hover:text-white hover:border-purple-500/40 hover:bg-purple-950/20 transition-all flex items-center justify-center gap-2"
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            disabled={isChecking}
+                            className={`w-full py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-widest border transition-all flex items-center justify-center gap-2
+                                ${isChecking 
+                                    ? 'border-purple-500/40 bg-purple-950/20 text-purple-300' 
+                                    : lastResult === 'Oceano Azul'
+                                    ? 'border-cyan-400/50 bg-cyan-900/20 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)]'
+                                    : lastResult === 'Saturado'
+                                    ? 'border-red-500/30 bg-red-900/10 text-red-400/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
+                                    : 'border-white/10 text-gray-400 hover:text-white hover:border-purple-500/40 hover:bg-purple-950/20'
+                                }`}
+                        >
+                            {isChecking ? (
+                               <>
+                                 <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                 Analisando {selectedMarket && MARKETS.find(m => m.code === selectedMarket)?.label}...
+                               </>
+                            ) : (
+                               <>
+                                 <span>🌍</span>
+                                 Analisar Mercados
+                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                 </svg>
+                               </>
+                            )}
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent 
+                        className="w-56 border-purple-500/20 bg-[#0d1117]/95 backdrop-blur-xl"
+                        sideOffset={5}
+                        align="start"
                     >
-                        {isChecking ? (
-                           <>
-                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                             Analisando {selectedMarket && MARKETS.find(m => m.code === selectedMarket)?.label}...
-                           </>
-                        ) : (
-                           <>
-                             <span>🌍</span>
-                             Analisar Mercados
-                             <svg className={`w-3 h-3 transition-transform ${showMarketDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                             </svg>
-                           </>
-                        )}
-                    </button>
-                    
-                    {showMarketDropdown && (
-                        <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-white/10 overflow-hidden z-50" style={{ background: 'rgba(13,17,23,0.98)', backdropFilter: 'blur(20px)', boxShadow: '0 0 30px rgba(168,85,247,0.15)' }}>
-                            <div className="px-3 py-2 border-b border-white/5">
-                                <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Idiomas Alto RPM</span>
-                            </div>
-                            {MARKETS.map((market) => (
-                                <button
-                                    key={market.code}
-                                    onClick={() => handleCheckMarket(market)}
-                                    disabled={isChecking}
-                                    className="w-full px-3 py-2.5 text-left hover:bg-purple-950/30 transition-all flex items-center gap-2.5 group disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <span className="text-base">{market.flag}</span>
-                                    <span className="text-xs font-mono text-gray-300 group-hover:text-white transition-colors">{market.label}</span>
-                                    <span className="ml-auto text-[9px] font-mono text-gray-600 uppercase">{market.code}</span>
-                                </button>
-                            ))}
+                        <DropdownMenuLabel className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">
+                            Idiomas Alto RPM
+                        </DropdownMenuLabel>
+                        {MARKETS.map((market) => (
+                            <DropdownMenuItem
+                                key={market.code}
+                                onClick={() => handleCheckMarket(market)}
+                                disabled={isChecking}
+                                className="cursor-pointer hover:bg-purple-950/30 focus:bg-purple-950/30"
+                            >
+                                <span className="text-base mr-2">{market.flag}</span>
+                                <span className="text-xs font-mono text-gray-300 flex-1">{market.label}</span>
+                                <span className="text-[9px] font-mono text-gray-600 uppercase">{market.code}</span>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            
+            {(statusPt || statusEs) && (
+                <div className="flex items-center justify-center gap-3 py-1">
+                    {statusPt && (
+                        <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all duration-500
+                            ${statusPt === 'Oceano Azul' 
+                                ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse' 
+                                : 'bg-red-900/10 border-red-500/20 text-red-400/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
+                            }`}>
+                            🇧🇷 {statusPt}
                         </div>
                     )}
-                </div>
-            ) : (
-                <div className="flex items-center justify-center gap-3 py-1">
-                    <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 ${statusPt === 'Oceano Azul' ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]' : 'bg-red-900/10 border-red-500/20 text-red-400/70'}`}>
-                        🇧🇷 {statusPt}
-                    </div>
-                    <div className="w-px h-3 bg-white/10" />
-                    <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 ${statusEs === 'Oceano Azul' ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_8px_rgba(34,211,238,0.2)]' : 'bg-red-900/10 border-red-500/20 text-red-400/70'}`}>
-                        🇲🇽 {statusEs}
-                    </div>
+                    {statusPt && statusEs && <div className="w-px h-3 bg-white/10" />}
+                    {statusEs && (
+                        <div className={`text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border inline-flex items-center gap-1.5 transition-all duration-500
+                            ${statusEs === 'Oceano Azul' 
+                                ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse' 
+                                : 'bg-red-900/10 border-red-500/20 text-red-400/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]'
+                            }`}>
+                            🇲🇽 {statusEs}
+                        </div>
+                    )}
                 </div>
             )}
             

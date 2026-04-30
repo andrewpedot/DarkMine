@@ -8,14 +8,6 @@ import { generateAct } from '../actions/generate-act';
 import { generateScenePrompts } from '../actions/generate-scene-prompts';
 import { getProjectById } from '../actions/get-project';
 
-export default function ScriptPage() {
-    return (
-        <Suspense fallback={<div className="min-h-screen bg-[#080b12]" />}>
-            <ScriptGenerator />
-        </Suspense>
-    );
-}
-
 function calculateWPMTime(text: string): { seconds: number, formatted: string } {
     if (!text) return { seconds: 0, formatted: "00:00" };
     const wordCount = text.trim().split(/\s+/).length;

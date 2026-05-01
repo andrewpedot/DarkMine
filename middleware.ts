@@ -10,6 +10,6 @@ export const config = {
     /*
      * Ignora rotas que não precisam ser protegidas (arquivos estáticos, imagens, etc)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

@@ -6,8 +6,8 @@ set -e
 #  Uso: ssh root@SEU_IP "cd /var/www/darkscript && bash deploy.sh"
 # ============================================
 
-APP_NAME="darkscript"
-APP_DIR="/var/www/darkscript"
+APP_NAME="darkmine"
+APP_DIR="/var/www/darkmine"
 
 echo "================================================"
 echo "  🚀 Deploy DarkScript — $(date '+%Y-%m-%d %H:%M:%S')"

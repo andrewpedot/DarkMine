@@ -4,14 +4,15 @@ import { createProject, updateProject } from './db';
 
 export async function generateHooks(originalTitle: string, market: string, projectId?: string) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-
+    
     if (!apiKey) {
         throw new Error('Erro: Chave da Anthropic não encontrada no .env');
     }
 
-    const systemPrompt = `Você é um Master Copywriter de YouTube especializado em localização. O usuário enviará um título outlier em inglês e o mercado alvo (Brasil ou México). Seu objetivo NÃO é traduzir literalmente, mas criar um Clone Cultural que mantenha o exato gatilho psicológico e o contexto original, usando gírias e a sintaxe natural do país escolhido. A prioridade é manter o significado intacto, não importa o tamanho do título. Retorne APENAS um JSON válido.
+    const systemPrompt = `Você é um Master Copywriter de YouTube especializado em localização. O usuário enviará um título outlier em inglês e o mercado alvo (um dos idiomas de alto RPM). Seu objetivo NÃO é traduzir literalmente, mas criar um Clone Cultural que mantenha o exato gatilho psicológico e o contexto original, usando gírias e a sintaxe natural do idioma/pís escolhido. A prioridade é manter o significado intacto, não importa o tamanho do título. Retorne APENAS um JSON válido.
+IMPORTANTE: Traduza e adapte os gatilhos psicológicos e os títulos estritamente para o idioma: [${market}], mantendo o tom nativo e a alta taxa de cliques.
 
-JSON
+JSON:
 {
   "analise_psicologica": "Qual foi o gatilho exato que fez o título original viralizar?",
   "variacoes": [
@@ -21,7 +22,7 @@ JSON
   ]
 }`;
 
-    const userMessage = `Título Original: "${originalTitle}"\nMercado Alvo: ${market}\n\nGere o clone cultural em formato JSON respeitando rigorosamente as regras.`;
+    const userMessage = `Título Original: "${originalTitle}"\nMercado Alvo: ${market}\n\nGere o clone cultural em formato JSON respeitando rigorosamente as regras, traduzindo para o idioma: [${market}].`;
 
     try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {

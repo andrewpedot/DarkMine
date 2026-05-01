@@ -7,7 +7,7 @@ import { generateHooks } from '../actions/generate-hooks';
 import { generateThumbPrompt } from '../actions/generate-thumb';
 import { saveTitleToProject } from '../actions/save-title';
 
-// Lista de idiomas de Alto RPM (mesma do VideoCard)
+// Lista de idiomas de Alto RPM
 const MARKETS = [
   { code: 'de', label: 'Alemão', flag: '🇩🇪', region: 'DE', lang: 'de' },
   { code: 'fr', label: 'Francês', flag: '🇫🇷', region: 'FR', lang: 'fr' },
@@ -24,7 +24,7 @@ const MARKETS = [
 export default function DarkHookPage() {
     const router = useRouter();
     const [titleInput, setTitleInput] = useState('');
-    const [market, setMarket] = useState('Brasil (PT-BR)');
+    const [market, setMarket] = useState('Alemão (DE)');
     const [isGenerating, setIsGenerating] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -47,14 +47,6 @@ export default function DarkHookPage() {
         if (m) setMarket(m);
         if (id) setCurrentProjectId(id);
     }, []);
-
-    const MOCK_RESULTS = [
-        { id: 1, title: "O Desastre Financeiro Que Ninguém Quer Te Contar (Aja Agora)", score: 98, type: 'Ganância' },
-        { id: 2, title: "Eles Esconderam Isso de Você: O Segredo Sombrio do Dinheiro", score: 95, type: 'Curiosidade' },
-        { id: 3, title: "Você Vai Perder Tudo Se Ignorar Este Alerta Financeiro", score: 93, type: 'Medo' },
-        { id: 4, title: "A Estratégia de Risco Zero Usada Pelos Bilionários Ocultos", score: 90, type: 'Autoridade' },
-        { id: 5, title: "Porque o Seu Banco Quer Que Você Continue Pobre (E Como Vencer)", score: 88, type: 'Curiosidade' },
-    ];
 
     const [currentProjectId, setCurrentProjectId] = useState<string>('');
 
@@ -127,8 +119,7 @@ export default function DarkHookPage() {
         setTimeout(() => setCopiedPromptId(null), 2000);
     };
 
-    return (
-        <div className="min-h-screen grid-bg relative overflow-x-hidden text-gray-200">
+    return <div className="min-h-screen grid-bg relative overflow-x-hidden text-gray-200">
             {/* Ambient glow blobs */}
             <div className="fixed top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)', filter: 'blur(40px)' }} />
             <div className="fixed bottom-1/4 right-1/4 w-80 h-80 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(5,150,105,0.05) 0%, transparent 70%)', filter: 'blur(40px)' }} />
@@ -181,7 +172,7 @@ export default function DarkHookPage() {
                             />
                         </div>
 
-                        {/* Market Selector */}
+                        {/* Selectors */}
                         <div>
                             <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">Mercado Alvo</label>
                             <div className="relative">
@@ -198,7 +189,6 @@ export default function DarkHookPage() {
                                 </select>
                                 <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                             </div>
-                        </div>
                         </div>
 
                         {/* Generate Button */}
@@ -217,12 +207,12 @@ export default function DarkHookPage() {
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                     </svg>
-                                    Processando Gatilhos...
+                                    Processando Ganchos...
                                 </>
                             ) : (
                                 <>
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414 0 4.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                                     </svg>
                                     Clonar e Adaptar Título
                                 </>
@@ -318,15 +308,15 @@ export default function DarkHookPage() {
                                             </button>
                                              <button
                                                  onClick={() => handleSaveAndComplete(item.titulo, true)}
-                                                 className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-emerald-600/90 border border-emerald-500 text-white hover:bg-emerald-500 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-emerald-600/90 border border-emerald-500 text-white hover:bg-emerald-500 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
                                              >
-                                                 ✍️ Gerar Roteiro
+                                                  ✍️ Gerar Roteiro
                                              </button>
-                                             <Link
-                                                 href={`/thumbnail?title=${encodeURIComponent(item.titulo)}`}
-                                                 className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-amber-600/90 border border-amber-500 text-white hover:bg-amber-500 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                                              <Link
+                                                  href={`/thumbnail?title=${encodeURIComponent(item.titulo)}`}
+                                                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-bold bg-amber-600/90 border border-amber-500 text-white hover:bg-amber-500 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                                              >
-                                                 🎨 Thumbnail
+                                                  🎨 Thumbnail
                                              </Link>
                                         </div>
 
@@ -360,5 +350,5 @@ export default function DarkHookPage() {
                 </div>
             </main>
         </div>
-    );
+    ;
 }

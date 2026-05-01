@@ -10,6 +10,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { analyzeMarketKeywords } from './actions/analyze-market';
 
 
 
@@ -166,6 +167,7 @@ function ScoreRing({ score }: { score: number }) {
 interface AnalyzedMarket {
   langCode: string;
   status: 'blue_ocean' | 'saturated';
+  analysis?: string;
 }
 
 function VideoCard({ card }: { card: any }) {
@@ -205,13 +207,13 @@ function VideoCard({ card }: { card: any }) {
       }
   };
 
-  const checkMarket = async (translatedTitle: string, region: string, lang: string) => {
+  const checkMarket = async (keywords: string, region: string, lang: string) => {
     const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
     if (!apiKey) throw new Error("API Key missing");
     const now = new Date();
     const originalVph = card.vphRaw;
 
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(translatedTitle)}&type=video&regionCode=${region}&relevanceLanguage=${lang}&key=${apiKey}`);
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q=${encodeURIComponent(keywords)}&type=video&regionCode=${region}&relevanceLanguage=${lang}&key=${apiKey}`);
     const data = await res.json();
     if (!data.items || data.items.length === 0) return 'Oceano Azul';
     
@@ -220,6 +222,7 @@ function VideoCard({ card }: { card: any }) {
     const vData = await vRes.json();
     
     let hasRecentHighVph = false;
+    let highViewsFound = false;
     
     for (const v of vData.items || []) {
         const pub = new Date(v.snippet.publishedAt);
@@ -227,12 +230,16 @@ function VideoCard({ card }: { card: any }) {
         const views = parseInt(v.statistics.viewCount || '0', 10);
         const vph = views / hours;
         
+        if (views > 500000) {
+            highViewsFound = true;
+        }
+        
         if (hours < 24 * 365 && vph >= originalVph * 0.1) {
             hasRecentHighVph = true;
         }
     }
     
-    if (hasRecentHighVph) return 'Saturado';
+    if (hasRecentHighVph || highViewsFound) return 'Saturado';
     return 'Oceano Azul';
   };
 
@@ -243,20 +250,17 @@ function VideoCard({ card }: { card: any }) {
     setSelectedMarket(market.code);
     
     try {
-        const translatedTitleRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${market.lang}&dt=t&q=${encodeURIComponent(card.title)}`).catch(()=>null);
-        const translatedTitleData = translatedTitleRes ? await translatedTitleRes.json().catch(()=>null) : null;
-        const translatedTitle = translatedTitleData ? translatedTitleData[0].map((item: any) => item[0]).join('') : card.title;
+        const aiAnalysis = await analyzeMarketKeywords(card.title, market.label, market.code);
         
-        setTranslatedTitle(translatedTitle);
-        
-        const result = await checkMarket(translatedTitle, market.region, market.lang);
+        const result = await checkMarket(aiAnalysis.keywords, market.region, market.lang);
         const status = result === 'Oceano Azul' ? 'blue_ocean' : 'saturated';
+        
         setAnalyzedMarkets(prev => {
             const exists = prev.find(m => m.langCode === market.code);
             if (exists) {
-                return prev.map(m => m.langCode === market.code ? { ...m, status } : m);
+                return prev.map(m => m.langCode === market.code ? { ...m, status, analysis: aiAnalysis.analise_textual } : m);
             }
-            return [...prev, { langCode: market.code, status }];
+            return [...prev, { langCode: market.code, status, analysis: aiAnalysis.analise_textual }];
         });
         
         return result;
@@ -264,13 +268,12 @@ function VideoCard({ card }: { card: any }) {
         console.error(e);
         const result = 'Saturado';
         
-        // Adiciona erro como saturado
         setAnalyzedMarkets(prev => {
             const exists = prev.find(m => m.langCode === market.code);
             if (exists) {
-                return prev.map(m => m.langCode === market.code ? { ...m, status: 'saturated' } : m);
+                return prev.map(m => m.langCode === market.code ? { ...m, status: 'saturated', analysis: 'Erro ao analisar o mercado.' } : m);
             }
-            return [...prev, { langCode: market.code, status: 'saturated' }];
+            return [...prev, { langCode: market.code, status: 'saturated', analysis: 'Erro ao analisar o mercado.' }];
         });
         
         return result;
@@ -488,7 +491,8 @@ function VideoCard({ card }: { card: any }) {
              {analyzedMarkets.map((market) => (
                <span
                  key={market.langCode}
-                 className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-all
+                 title={market.analysis}
+                 className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-all cursor-help
                    ${market.status === 'blue_ocean' 
                      ? 'bg-cyan-900/20 border-cyan-400/50 text-cyan-300' 
                      : 'bg-red-900/10 border-red-500/20 text-red-400/70'

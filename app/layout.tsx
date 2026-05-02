@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import 'tw-animate-css';
 import './globals.css';
 import { Sidebar } from '../components/Sidebar';
 import { Geist } from "next/font/google";

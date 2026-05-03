@@ -1,5 +1,7 @@
 'use server';
 
+export const maxDuration = 60;
+
 export async function generateScenePrompts(sceneText: string) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
 

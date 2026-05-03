@@ -1,5 +1,7 @@
 'use server';
 
+export const maxDuration = 60;
+
 import { createProject, updateProject } from './db';
 
 export async function generateHooks(originalTitle: string, market: string, projectId?: string) {
@@ -9,8 +11,9 @@ export async function generateHooks(originalTitle: string, market: string, proje
         throw new Error('Erro: Chave da Anthropic não encontrada no .env');
     }
 
-    const systemPrompt = `Você é um Master Copywriter de YouTube especializado em localização. O usuário enviará um título outlier em inglês e o mercado alvo (um dos idiomas de alto RPM). Seu objetivo NÃO é traduzir literalmente, mas criar um Clone Cultural que mantenha o exato gatilho psicológico e o contexto original, usando gírias e a sintaxe natural do idioma/pís escolhido. A prioridade é manter o significado intacto, não importa o tamanho do título. Retorne APENAS um JSON válido.
+    const systemPrompt = `Você é um Master Copywriter de YouTube especializado em localização. O usuário enviará um título outlier em inglês e o mercado alvo (um dos idiomas de alto RPM). Seu objetivo NÃO é traduzir literalmente, mas criar um Clone Cultural que mantenha o exato gatilho psicológico e o contexto original, usando gírias e a sintaxe natural do idioma/país escolhido. A prioridade é manter o significado intacto, não importa o tamanho do título. Retorne APENAS um JSON válido.
 IMPORTANTE: Traduza e adapte os gatilhos psicológicos e os títulos estritamente para o idioma: [${market}], mantendo o tom nativo e a alta taxa de cliques.
+REGRA CRÍTICA: MANTENHA AS CHAVES DO JSON EXATAMENTE COMO NO EXEMPLO (em português). NÃO TRADUZA AS CHAVES DO JSON.
 
 JSON:
 {
@@ -22,7 +25,7 @@ JSON:
   ]
 }`;
 
-    const userMessage = `Título Original: "${originalTitle}"\nMercado Alvo: ${market}\n\nGere o clone cultural em formato JSON respeitando rigorosamente as regras, traduzindo para o idioma: [${market}].`;
+    const userMessage = `Título Original: "${originalTitle}"\nMercado Alvo: ${market}\n\nGere o clone cultural em formato JSON respeitando rigorosamente as regras, traduzindo para o idioma: [${market}]. NÃO TRADUZA AS CHAVES DO JSON.`;
 
     try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -33,7 +36,7 @@ JSON:
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-sonnet-4-5-20250929',
+                model: 'claude-3-5-sonnet-20241022',
                 max_tokens: 1024,
                 system: systemPrompt,
                 messages: [
@@ -60,6 +63,15 @@ JSON:
         }
 
         const result = JSON.parse(content.trim());
+
+        // Normalize keys in case the AI translates them despite instructions
+        if (result.variacoes && Array.isArray(result.variacoes)) {
+            result.variacoes = result.variacoes.map((v: any) => ({
+                titulo: v.titulo || v.title || v.titre || v.título || v.Titre || v.Title || v.Titulo || '',
+                emocao: v.emocao || v.emotion || v.emoção || v.Emotion || v.Emocao || '',
+                ctr_estimado: v.ctr_estimado || v.estimated_ctr || v.ctr || v.ctr_estime || v.ctr_estimé || v.ctr_estimado || 95
+            }));
+        }
 
         let savedProjectId = projectId;
         if (!savedProjectId) {

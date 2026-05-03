@@ -1,5 +1,7 @@
 'use server';
 
+export const maxDuration = 60;
+
 import { updateProject } from './db';
 
 export async function generateScript(title: string, lengthInMinutes: number, projectId?: string) {

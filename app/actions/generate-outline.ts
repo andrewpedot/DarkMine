@@ -1,5 +1,7 @@
 'use server';
 
+export const maxDuration = 60;
+
 import { updateProject } from './db';
 
 export async function generateOutline(title: string, lengthInMinutes: number, narrativeFormat: string, useCulturalAdaptation: boolean, market: string, projectId?: string) {

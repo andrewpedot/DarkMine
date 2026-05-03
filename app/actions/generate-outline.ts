@@ -1,6 +1,7 @@
 'use server';
 
 export const maxDuration = 60;
+export const runtime = 'edge';
 
 import { updateProject } from './db';
 

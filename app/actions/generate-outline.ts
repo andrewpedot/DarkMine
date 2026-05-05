@@ -1,9 +1,6 @@
 'use server';
-
-export const maxDuration = 60;
-export const runtime = 'edge';
-
 import { updateProject } from './db';
+
 
 export async function generateOutline(title: string, lengthInMinutes: number, narrativeFormat: string, useCulturalAdaptation: boolean, market: string, projectId?: string) {
     const apiKey = process.env.ANTHROPIC_API_KEY;

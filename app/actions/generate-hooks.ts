@@ -1,9 +1,6 @@
 'use server';
-
-export const maxDuration = 60;
-export const runtime = 'edge';
-
 import { createProject, updateProject } from './db';
+
 
 export async function generateHooks(originalTitle: string, market: string, projectId?: string) {
     const apiKey = process.env.ANTHROPIC_API_KEY;

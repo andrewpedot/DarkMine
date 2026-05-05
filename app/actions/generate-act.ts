@@ -1,9 +1,6 @@
 'use server';
-
-export const maxDuration = 60;
-export const runtime = 'edge';
-
 import { updateProject } from './db';
+
 
 export async function generateAct(title: string, phaseName: string, previousText: string, narrativeFormat: string, useCulturalAdaptation: boolean, market: string, projectId?: string, currentScriptContent?: any) {
     const apiKey = process.env.ANTHROPIC_API_KEY;

@@ -32,7 +32,6 @@ export default function DarkHookPage() {
         analise_psicologica: string;
         variacoes: Array<{ titulo: string, emocao: string, ctr_estimado: number }>;
     } | null>(null);
-
     const [expandedPromptId, setExpandedPromptId] = useState<number | null>(null);
     const [thumbPrompts, setThumbPrompts] = useState<Record<number, string>>({});
     const [isGeneratingThumb, setIsGeneratingThumb] = useState<number | null>(null);
@@ -49,17 +48,19 @@ export default function DarkHookPage() {
     }, []);
 
     const [currentProjectId, setCurrentProjectId] = useState<string>('');
+    const [errorMsg, setErrorMsg] = useState('');
 
     const handleGenerate = async () => {
         if (!titleInput.trim()) return;
         setIsGenerating(true);
         setShowResults(false);
+        setErrorMsg('');
 
         try {
             const data = await generateHooks(titleInput, market, currentProjectId || undefined);
             
             if (!data.success) {
-                alert(data.error || "Erro ao gerar variações.");
+                setErrorMsg(data.error || "Erro ao gerar variações.");
                 setIsGenerating(false);
                 return;
             }
@@ -69,9 +70,9 @@ export default function DarkHookPage() {
                 setCurrentProjectId(data.projectId);
             }
             setShowResults(true);
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Erro de conexão ou erro interno. Tente novamente.");
+            setErrorMsg("Erro crítico: Verifique sua conexão e a chave da API.");
         } finally {
             setIsGenerating(false);
         }
@@ -160,6 +161,13 @@ export default function DarkHookPage() {
 
             {/* MAIN CONTENT */}
             <main className="max-w-7xl mx-auto px-6 py-10">
+                {/* Error Banner */}
+                {errorMsg && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-950/30 border border-red-500/50 text-red-200 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                        <span className="text-xl">⚠️</span>
+                        <p className="text-sm font-medium">{errorMsg}</p>
+                    </div>
+                )}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 
                     {/* LEFT COLUMN: Input Panel */}
@@ -248,7 +256,7 @@ export default function DarkHookPage() {
                         <div className="flex items-center justify-between mb-4 px-1">
                             <h3 className="text-sm font-semibold text-white">Variações de Alta Conversão</h3>
                             <span className="text-[10px] font-mono text-emerald-400 bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-500/30">
-                                3 Resultados
+                                {results?.variacoes?.length || 0} Resultados
                             </span>
                         </div>
 

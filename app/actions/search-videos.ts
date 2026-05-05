@@ -100,7 +100,7 @@ function scoreFacelessChannel(channel: any, video: any): number {
   return score;
 }
 
-export async function searchVideos(query: string, maxSubs: number, niche: string) {
+export async function searchVideos(query: string, maxSubs: number, niche: string, onlyAI = false) {
   const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     throw new Error("Chave de API do YouTube não configurada.");
@@ -202,12 +202,13 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
 
     // ── Score de Dark/Faceless (heurísticas indiretas) ──
     const facelessScore = scoreFacelessChannel(channel, video);
-
-    // Threshold mínimo: score >= 20 para ser considerado canal dark/faceless
-    // (= qualquer combinação de sinais positivos, não precisa de containsSyntheticMedia)
-    if (facelessScore < 20) continue;
-
     const isSynthetic = video.status?.containsSyntheticMedia === true;
+
+    // ── Filtro obrigatório de IA (quando onlyAI ativo) ──
+    if (onlyAI && !isSynthetic) continue;
+
+    // Threshold mínimo de faceless score
+    if (facelessScore < 20) continue;
 
     results.push({
       id: video.id,

@@ -648,6 +648,7 @@ export default function DarkMinePage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [cards, setCards] = useState<any[]>(MOCK_CARDS);
   const [libraryCount, setLibraryCount] = useState(0);
+  const [onlyAI, setOnlyAI] = useState(false);
 
   useEffect(() => {
       const updateCount = () => {
@@ -697,7 +698,7 @@ export default function DarkMinePage() {
       const q = searchQuery || nicheMapping[activeNiche] || activeNiche;
       const limitSubs = parseInt(maxSubs, 10) || 50000;
 
-      const bestResults = await searchVideos(q, limitSubs, activeNiche);
+      const bestResults = await searchVideos(q, limitSubs, activeNiche, onlyAI);
 
       setCards(bestResults);
       setMined(true);
@@ -816,7 +817,7 @@ export default function DarkMinePage() {
             </div>
           </div>
 
-          {/* Niche filters */}
+          {/* Niche filters + AI toggle */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-600 font-mono uppercase tracking-wider mr-1">Nicho:</span>
             {NICHES.map(n => (
@@ -829,7 +830,32 @@ export default function DarkMinePage() {
                 {n}
               </button>
             ))}
+            {/* Separador */}
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            {/* Toggle IA Confirmada */}
+            <button
+              id="toggle-apenas-ia"
+              onClick={() => setOnlyAI(v => !v)}
+              title={onlyAI ? 'Filtro IA ativo: apenas vídeos com contensSyntheticMedia=true' : 'Ativar para buscar APENAS conteúdo com IA declarada'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                onlyAI
+                  ? 'bg-green-950/60 border-green-400/70 text-green-300 shadow-[0_0_8px_rgba(74,222,128,0.25)]'
+                  : 'border-white/10 text-gray-500 hover:border-green-500/40 hover:text-green-400'
+              }`}
+            >
+              🤖 {onlyAI ? 'Apenas IA (ativo)' : 'Apenas IA'}
+            </button>
           </div>
+
+          {/* Aviso quando filtro IA está ativo */}
+          {onlyAI && (
+            <div className="flex items-start gap-2 bg-green-950/20 border border-green-500/30 text-green-300 text-xs px-4 py-2.5 rounded-xl">
+              <span className="text-base flex-shrink-0">🤖</span>
+              <span>
+                <strong>Filtro IA ativo:</strong> Apenas vídeos onde o criador declarou uso de IA no YouTube Studio (<code className="text-green-400">containsSyntheticMedia = true</code>). Resultado pode ser menor — muitos canais usam IA mas não marcam a opção.
+              </span>
+            </div>
+          )}
 
           {/* Error Message */}
           {errorMsg && (

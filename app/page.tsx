@@ -446,6 +446,17 @@ function VideoCard({ card }: { card: any }) {
            <div className="bg-blue-950/40 border border-blue-500/50 text-blue-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1.5">
              📈 Anomalia: {typeof card.outlierMultiplier === 'number' ? `${card.outlierMultiplier}x` : card.outlierMultiplier}
            </div>
+           {card.facelessScore != null && (
+             <div className={`px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1.5 ${
+               card.facelessScore >= 80
+                 ? 'bg-purple-950/60 border border-purple-400/60 text-purple-300'
+                 : card.facelessScore >= 50
+                 ? 'bg-cyan-950/40 border border-cyan-500/50 text-cyan-400'
+                 : 'bg-gray-900/40 border border-gray-600/40 text-gray-400'
+             }`}>
+               🕶️ Dark Score: {card.facelessScore}
+             </div>
+           )}
          </div>
 
 

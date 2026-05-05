@@ -349,11 +349,13 @@ function VideoCard({ card }: { card: any }) {
         </div>
         
         {/* Top-left: lifespan */}
-        <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap pointer-events-none z-10">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${card.lifespan.type === 'evergreen' ? 'bg-emerald-900/80 border-emerald-500/50 text-emerald-300' : 'bg-orange-900/80 border-orange-500/50 text-orange-300'}`}>
-            {card.lifespan.label}
-          </span>
-        </div>
+        {card.lifespan && (
+          <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap pointer-events-none z-10">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${card.lifespan.type === 'evergreen' ? 'bg-emerald-900/80 border-emerald-500/50 text-emerald-300' : 'bg-orange-900/80 border-orange-500/50 text-orange-300'}`}>
+              {card.lifespan.label}
+            </span>
+          </div>
+        )}
         
         {/* Top-right: bookmark + multiplier */}
         <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
@@ -373,7 +375,9 @@ function VideoCard({ card }: { card: any }) {
             </svg>
           </button>
           <div className="outlier-badge bg-purple-950/80 border border-purple-400/70 rounded-lg px-2.5 py-1 flex items-center gap-1 pointer-events-none">
-            <span className="text-purple-300 font-black text-sm font-mono">{card.outlierMultiplier}</span>
+            <span className="text-purple-300 font-black text-sm font-mono">
+              {typeof card.outlierMultiplier === 'number' ? `${card.outlierMultiplier}x` : card.outlierMultiplier}
+            </span>
             <span className="text-purple-400/80 text-[9px] font-mono">views/subs</span>
           </div>
         </div>
@@ -439,7 +443,7 @@ function VideoCard({ card }: { card: any }) {
              </div>
            )}
            <div className="bg-blue-950/40 border border-blue-500/50 text-blue-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1.5">
-             📈 Anomalia: {card.outlierMultiplier}x
+             📈 Anomalia: {typeof card.outlierMultiplier === 'number' ? `${card.outlierMultiplier}x` : card.outlierMultiplier}
            </div>
          </div>
 

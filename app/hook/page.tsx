@@ -262,7 +262,7 @@ export default function DarkHookPage() {
 
                         {/* Suggestion Cards */}
                         <div className="space-y-4">
-                            {results?.variacoes.map((item, index) => {
+                            {results?.variacoes?.map((item, index) => {
                                 const isCloneCultural = index === 0;
                                 return (
                                     <div key={index} className={`rounded-xl p-5 card-glass border transition-all group flex flex-col gap-4 ${isCloneCultural ? 'border-emerald-500/50 bg-emerald-900/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-white/5 hover:border-emerald-500/30'}`}>

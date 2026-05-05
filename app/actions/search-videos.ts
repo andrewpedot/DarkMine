@@ -1,5 +1,11 @@
 'use server';
 
+// Headers to bypass Google API key HTTP Referrer restriction when called server-side
+const YT_HEADERS = {
+  'Referer': 'https://www.darkmine.fun/',
+  'Origin': 'https://www.darkmine.fun',
+};
+
 export async function searchVideos(query: string, maxSubs: number, niche: string) {
   const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
@@ -17,7 +23,8 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
   for (let i = 0; i < 2; i++) {
     const pageTokenParam = nextPageToken ? `&pageToken=${nextPageToken}` : '';
     const searchRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(query)}&type=video&regionCode=US&relevanceLanguage=en&publishedAfter=${publishedAfterStr}${pageTokenParam}&key=${apiKey}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=50&q=${encodeURIComponent(query)}&type=video&regionCode=US&relevanceLanguage=en&publishedAfter=${publishedAfterStr}${pageTokenParam}&key=${apiKey}`,
+      { headers: YT_HEADERS }
     );
     const searchData = await searchRes.json();
     if (searchData.error) {
@@ -41,7 +48,8 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
   for (let i = 0; i < videoIdsArr.length; i += 50) {
     const batch = videoIdsArr.slice(i, i + 50).join(',');
     const videosRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet,status&id=${batch}&key=${apiKey}`
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet,status&id=${batch}&key=${apiKey}`,
+      { headers: YT_HEADERS }
     );
     const videosData = await videosRes.json();
     if (videosData.items) allVideosData.push(...videosData.items);
@@ -52,7 +60,8 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
   for (let i = 0; i < channelIdsArr.length; i += 50) {
     const batch = channelIdsArr.slice(i, i + 50).join(',');
     const channelsRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${batch}&key=${apiKey}`
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${batch}&key=${apiKey}`,
+      { headers: YT_HEADERS }
     );
     const channelsData = await channelsRes.json();
     if (channelsData.items) allChannelsData.push(...channelsData.items);

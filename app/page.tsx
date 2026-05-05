@@ -692,7 +692,21 @@ export default function DarkMinePage() {
       setMined(true);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Erro desconhecido ao minerar dados');
+      // Em produção, erros de Server Action vêm sem .message (apenas digest)
+      // Detectamos os casos mais comuns pelo texto quando disponível
+      const msg: string = err?.message || '';
+      if (msg.includes('expired') || msg.includes('keyExpired')) {
+        setErrorMsg('🔑 YouTube API Key expirada. Renove a chave no Google Cloud Console e atualize o .env.local (NEXT_PUBLIC_YOUTUBE_API_KEY).');
+      } else if (msg.includes('quota') || msg.includes('quotaExceeded')) {
+        setErrorMsg('⚠️ Cota da YouTube API esgotada para hoje. Tente novamente amanhã.');
+      } else if (msg.includes('API Key') || msg.includes('keyInvalid')) {
+        setErrorMsg('🔑 YouTube API Key inválida ou não configurada. Verifique suas variáveis de ambiente.');
+      } else if (msg) {
+        setErrorMsg(msg);
+      } else {
+        // Erro sem mensagem = Server Action falhou em produção
+        setErrorMsg('❌ Erro ao conectar com a API do YouTube. Verifique se a API Key está válida e configurada corretamente nas variáveis de ambiente da Netlify.');
+      }
     } finally {
       setMining(false);
     }

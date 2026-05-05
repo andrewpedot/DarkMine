@@ -54,8 +54,16 @@ export default function DarkHookPage() {
         if (!titleInput.trim()) return;
         setIsGenerating(true);
         setShowResults(false);
+
         try {
             const data = await generateHooks(titleInput, market, currentProjectId || undefined);
+            
+            if (!data.success) {
+                alert(data.error || "Erro ao gerar variações.");
+                setIsGenerating(false);
+                return;
+            }
+
             setResults(data);
             if (data.projectId) {
                 setCurrentProjectId(data.projectId);
@@ -63,7 +71,7 @@ export default function DarkHookPage() {
             setShowResults(true);
         } catch (error) {
             console.error(error);
-            alert("Erro ao gerar variações. Verifique a chave da API e o console.");
+            alert("Erro de conexão ou erro interno. Tente novamente.");
         } finally {
             setIsGenerating(false);
         }

@@ -393,10 +393,11 @@ function VideoCard({ card }: { card: any }) {
           </div>
         </div>
 
-        {/* Duration pill */}
-        <div className="absolute bottom-2 right-2 bg-black/80 border border-white/10 text-white text-[10px] font-mono px-2 py-0.5 rounded pointer-events-none">
-          {card.avgView}
-        </div>
+        {card.avgView && (
+          <div className="absolute bottom-2 right-2 bg-black/80 border border-white/10 text-white text-[10px] font-mono px-2 py-0.5 rounded pointer-events-none">
+            {card.avgView}
+          </div>
+        )}
       </div>
 
       {/* Card body */}
@@ -429,7 +430,7 @@ function VideoCard({ card }: { card: any }) {
               {isTranslating ? 'Traduzindo...' : showPtBR ? '🇧🇷 PT-BR (clique para EN)' : '🌐 Ver título em PT-BR'}
             </button>
           </div>
-          <ScoreRing score={card.score} />
+          {card.score != null && <ScoreRing score={card.score} />}
          </div>
 
          {/* Novas Badges do Radar de Anomalias */}
@@ -523,25 +524,31 @@ function VideoCard({ card }: { card: any }) {
            </div>
          )}
 
-         {/* CTR + VPH row */}
+         {/* CTR + VPH row — only for mock/enriched cards */}
+        {(card.ctr || card.vph) && (
         <div className="flex items-center justify-between border-t border-white/5 pt-3">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-gray-500 font-mono uppercase">CTR</span>
-              <span className="text-xs font-bold text-emerald-400 font-mono">{card.ctr}</span>
-            </div>
-            <div className="w-px h-3 bg-white/10" />
-            <div className="flex items-center gap-1">
-              <span className="text-sm">🔥</span>
-              <span className="text-xs font-black text-orange-400 font-mono">{card.vph}</span>
-              <span className="text-[9px] text-gray-600 font-mono uppercase">VPH</span>
-            </div>
+            {card.ctr && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-gray-500 font-mono uppercase">CTR</span>
+                <span className="text-xs font-bold text-emerald-400 font-mono">{card.ctr}</span>
+              </div>
+            )}
+            {card.ctr && card.vph && <div className="w-px h-3 bg-white/10" />}
+            {card.vph && (
+              <div className="flex items-center gap-1">
+                <span className="text-sm">🔥</span>
+                <span className="text-xs font-black text-orange-400 font-mono">{card.vph}</span>
+                <span className="text-[9px] text-gray-600 font-mono uppercase">VPH</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${card.vphRaw > 100 ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
-            <span className="text-[10px] text-gray-500">{card.vphRaw > 100 ? 'Alta tração' : 'Tração normal'}</span>
+            <div className={`w-2 h-2 rounded-full ${(card.vphRaw || 0) > 100 ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'}`} />
+            <span className="text-[10px] text-gray-500">{(card.vphRaw || 0) > 100 ? 'Alta tração' : 'Tração normal'}</span>
           </div>
         </div>
+        )}
 
         {/* Dynamic Action Section */}
         <div className="mt-auto flex flex-col gap-2 pt-2">

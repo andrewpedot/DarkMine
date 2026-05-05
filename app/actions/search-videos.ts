@@ -19,6 +19,22 @@ const YT_HEADERS = {
  */
 const REGEX_FACE_VISIBLE = /\b(eu|meu|minha|vlog|podcast|tour|unboxing|reagindo|react|q&a|qna|storytime|story time|mukbang|get ready with me|grwm|haul|day in my life)\b/i;
 
+// Filtro de Shorts — elimina por hashtag no título
+const REGEX_SHORTS = /#shorts?\b|\bshorts?\b$/i;
+
+/**
+ * Converte duração ISO 8601 (ex: "PT14M32S") para segundos.
+ * Shorts têm duração <= 180s (3 min). Vídeos dark/faceless são longos (10min+).
+ */
+function parseDuration(iso: string): number {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const h = parseInt(match[1] || '0', 10);
+  const m = parseInt(match[2] || '0', 10);
+  const s = parseInt(match[3] || '0', 10);
+  return h * 3600 + m * 60 + s;
+}
+
 // Palavras-chave de títulos dark/faceless — cada match adiciona pontos ao score
 const DARK_TITLE_KEYWORDS = [
   /\b(secret|hidden|exposed|untold|truth|shocking|revealed|conspiracy|dark|disturbing|mystery|unsolved|crime|murder|killed|disappeared|missing|cover.?up|forbidden|classified)\b/i,
@@ -156,6 +172,13 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
 
     // ── Filtro NEGATIVO obrigatório: descarta face visível ──
     if (REGEX_FACE_VISIBLE.test(videoTitle)) continue;
+
+    // ── Filtro de Shorts: descarta por hashtag no título ──
+    if (REGEX_SHORTS.test(videoTitle)) continue;
+
+    // ── Filtro de Shorts: descarta por duração < 3 minutos ──
+    const durationSec = parseDuration(video.contentDetails?.duration || '');
+    if (durationSec > 0 && durationSec < 180) continue;
 
     // ── Filtro de inscritos ──
     const subsRaw = parseInt(channel.statistics?.subscriberCount || '0', 10);

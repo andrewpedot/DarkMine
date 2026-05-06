@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { sendToProduction } from '../actions/darkmine-actions';
+import { NicheSelector } from '@/components/darkmine/NicheSelector';
 
 interface Niche {
   id: number;
@@ -23,10 +24,19 @@ interface SearchSession {
   status: string;
   created_at: string;
   analysis_results?: { count: number }[];
+  niche_filter_id: number | null;
+  subniche_filter_id: number | null;
+}
+
+interface NicheLabel {
+  id: number;
+  name: string;
 }
 
 interface AnalysisResult {
   id: string;
+  niche_id: number | null;
+  subniche_id: number | null;
   opportunity_score: number;
   faceless_score: number;
   comment_gold_score: number;
@@ -46,6 +56,8 @@ interface AnalysisResult {
     name: string;
     subscriber_count: number;
   };
+  niches: NicheLabel[] | null;
+  nichesBySubniche: NicheLabel[] | null;
 }
 
 const SEARCH_TYPES = [
@@ -113,6 +125,9 @@ export default function DarkMinePage() {
   const [page, setPage] = useState(1);
   const [niches, setNiches] = useState<Niche[]>([]);
   const [isSendingToProd, setIsSendingToProd] = useState<string | null>(null);
+  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
+  const [selectedSubnicheId, setSelectedSubnicheId] = useState<number | null>(null);
+  const [nicheKeywords, setNicheKeywords] = useState<string[]>([]);
 
   useEffect(() => {
     fetchSessions();
@@ -182,6 +197,8 @@ export default function DarkMinePage() {
           keywords,
           searchType,
           maxSubscribers: 50000,
+          nicheId: selectedNicheId,
+          subnicheId: selectedSubnicheId,
         }),
       });
 
@@ -324,6 +341,16 @@ export default function DarkMinePage() {
             ))}
           </div>
 
+          <NicheSelector 
+            selectedNicheId={selectedNicheId}
+            selectedSubnicheId={selectedSubnicheId}
+            onNicheSelect={(nicheId, subnicheId, keywords) => {
+              setSelectedNicheId(nicheId);
+              setSelectedSubnicheId(subnicheId);
+              setNicheKeywords(keywords);
+            }}
+          />
+
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-600 font-mono uppercase tracking-wider mr-1">Sugestões:</span>
             {exampleKeywords.map(kw => (
@@ -447,13 +474,22 @@ export default function DarkMinePage() {
                         <th className="p-3">Score</th>
                         <th className="p-3">Vídeo</th>
                         <th className="p-3">Canal</th>
+                        <th className="p-3">Nichos</th>
                         <th className="p-3">Outlier</th>
                         <th className="p-3">VPD</th>
                         <th className="p-3">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {results.map((result, idx) => (
+                      {results.map((result, idx) => {
+                        const nicheData = result.niches?.[0];
+                        const subnicheData = result.nichesBySubniche?.[0];
+                        const displayNiche = subnicheData?.name || nicheData?.name;
+                        const nichePath = nicheData?.name && subnicheData?.name 
+                          ? `${nicheData.name} > ${subnicheData.name}`
+                          : nicheData?.name || '';
+                        
+                        return (
                         <tr
                           key={result.id || idx}
                           className={`transition-colors hover:bg-white/5 ${selectedResult?.id === result.id ? 'bg-purple-900/20' : ''}`}
@@ -478,6 +514,15 @@ export default function DarkMinePage() {
                           <td className="p-3">
                             <div className="text-sm text-gray-300">{result.channels?.name || 'N/A'}</div>
                             <div className="text-[10px] text-gray-500">{formatNumber(result.channels?.subscriber_count || 0)} subs</div>
+                          </td>
+                          <td className="p-3">
+                            {displayNiche ? (
+                              <div title={nichePath} className="text-xs px-2 py-1 rounded-full bg-gray-800 text-green-400 border border-green-500/30 max-w-[120px] truncate">
+                                {displayNiche}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-500">-</span>
+                            )}
                           </td>
                           <td className="p-3">
                             <span className="text-sm font-bold text-purple-400 font-mono">
@@ -535,7 +580,8 @@ export default function DarkMinePage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

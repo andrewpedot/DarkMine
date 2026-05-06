@@ -36,6 +36,8 @@ export async function GET(
       .from('analysis_results')
       .select(`
         id,
+        niche_id,
+        subniche_id,
         opportunity_score,
         faceless_score,
         comment_gold_score,
@@ -57,6 +59,14 @@ export async function GET(
           name,
           subscriber_count,
           total_views
+        ),
+        niches (
+          id,
+          name
+        ),
+        niches!analysis_results_subniche_id_fkey (
+          id,
+          name
         )
       `)
       .eq('session_id', id)

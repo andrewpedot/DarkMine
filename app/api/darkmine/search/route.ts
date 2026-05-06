@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { sessionName, keywords, searchType, maxSubscribers = 50000 } = body;
+    const { sessionName, keywords, searchType, maxSubscribers = 50000, nicheId, subnicheId } = body;
 
     if (!sessionName || !keywords || keywords.length === 0) {
       return NextResponse.json(
@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
         search_type: searchType || type,
         max_subscribers: maxSubscribers,
         status: 'processing',
+        niche_filter_id: nicheId || null,
+        subniche_filter_id: subnicheId || null,
       })
       .select()
       .single();

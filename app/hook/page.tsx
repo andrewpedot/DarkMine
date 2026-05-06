@@ -36,6 +36,8 @@ export default function DarkHookPage() {
     const [thumbPrompts, setThumbPrompts] = useState<Record<number, string>>({});
     const [isGeneratingThumb, setIsGeneratingThumb] = useState<number | null>(null);
     const [copiedPromptId, setCopiedPromptId] = useState<number | null>(null);
+    const [currentProjectId, setCurrentProjectId] = useState<string>('');
+    const [errorMsg, setErrorMsg] = useState('');
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -46,9 +48,6 @@ export default function DarkHookPage() {
         if (m) setMarket(m);
         if (id) setCurrentProjectId(id);
     }, []);
-
-    const [currentProjectId, setCurrentProjectId] = useState<string>('');
-    const [errorMsg, setErrorMsg] = useState('');
 
     const handleGenerate = async () => {
         if (!titleInput.trim()) return;

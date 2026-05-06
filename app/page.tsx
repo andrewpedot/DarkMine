@@ -189,21 +189,53 @@ function VideoCard({ card }: { card: any }) {
       }
   }, [card.id]);
 
-  const handleSave = (e: any) => {
+  const handleSave = async (e: any) => {
       e.stopPropagation();
-      const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+      
       if (saved) {
+          const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
           const newLib = lib.map((c: any) => c.id === card.id ? { ...c, analyzedMarkets: analyzedMarkets } : c);
           localStorage.setItem('darkmine_library', JSON.stringify(newLib));
           setSaved(false);
           window.dispatchEvent(new Event('libraryUpdated'));
-      } else {
-          const newCard = { ...card, libraryStatus: 'Pendente', analyzedMarkets };
-          lib.push(newCard);
-          localStorage.setItem('darkmine_library', JSON.stringify(lib));
-          setSaved(true);
-          window.dispatchEvent(new Event('libraryUpdated'));
+          return;
       }
+
+      const saveToApi = async () => {
+          try {
+              const res = await fetch('/api/library/save', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      title: card.title,
+                      title_en: card.title,
+                      language: 'en',
+                      source: 'darkmine',
+                      source_id: card.id,
+                      source_session_id: card.sessionId || null,
+                      vpd: card.vphRaw || card.viewsPerDay || 0,
+                      anomaly_ratio: card.outlierMultiplierRaw || card.outlierMultiplier || 0,
+                      dark_score: card.facelessScore || 0,
+                      opportunity_score: card.score || 0,
+                      tags: [card.niche || 'darkmine'],
+                  }),
+              });
+              const data = await res.json();
+              if (!data.success) {
+                  console.error('Failed to save to library:', data.error);
+              }
+          } catch (err) {
+              console.error('Save to library error:', err);
+          }
+      };
+
+      const newCard = { ...card, libraryStatus: 'Pendente', analyzedMarkets };
+      const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+      lib.push(newCard);
+      localStorage.setItem('darkmine_library', JSON.stringify(lib));
+      setSaved(true);
+      saveToApi();
+      window.dispatchEvent(new Event('libraryUpdated'));
   };
 
   const checkMarket = async (keywords: string, region: string, lang: string) => {

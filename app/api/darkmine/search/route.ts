@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { searchVideos, getVideoDetails, getChannelDetails, saveVideoToDb, saveChannelToDb, YouTubeVideo, YouTubeChannel } from '@/lib/youtube';
+import { searchVideos, getVideoDetails, getChannelDetails, getCommentThreads, saveVideoToDb, saveChannelToDb, YouTubeVideo, YouTubeChannel } from '@/lib/youtube';
 import { computeFacelessScore, computeCommentGoldScore, classifyNiche, computeTimingBonus, computeMonetizationSignals, computeFinalScore, calculateOutlierMultiplier, calculateViewsPerDay, determineSearchType } from '@/lib/scoring';
 
 export async function POST(request: NextRequest) {

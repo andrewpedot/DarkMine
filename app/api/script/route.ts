@@ -102,6 +102,14 @@ Generate a YouTube thumbnail prompt following the proven visual language of top 
 
 6. NO photorealistic backgrounds — this is the single most important rule. Black background only.
 
+7. THERMOMETER must be analog/classic red mercury style, NOT digital clinical thermometer. Show temperature reading clearly beside it as text overlay.
+
+8. WILTED PLANT must be fully DESATURATED (greyscale/grey tones), creating maximum contrast against the vivid red tomato. This is mandatory — not optional.
+
+9. TOMATO position: center-left of frame, vertically centered, NOT touching bottom edge (leave 15% margin at bottom for YouTube progress bar).
+
+10. WHITE OUTLINE/STROKE on all cutout objects — thin (3-5px equivalent), clean, consistent on all subjects.
+
 Format: [LARGE BOLD TEXT — specific words/numbers, placement: upper area] + [MAIN SUBJECT — isolated cutout, no background, highly saturated] + [CONTRAST SUBJECT — isolated cutout, desaturated, smaller] + [BLACK BACKGROUND — pure darkness] + [TECHNICAL: isolated objects, cutout style, black background, high saturation on main subject, 8K sharp]
 
 [DIREÇÃO]

@@ -55,7 +55,7 @@ O número de blocos deve ser proporcional ao tamanho do vídeo (${lengthInMinute
                 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-latest',
+                model: 'claude-sonnet-4-5',
                 max_tokens: 4096,
                 system: systemPrompt,
                 messages: [

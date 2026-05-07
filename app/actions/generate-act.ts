@@ -56,7 +56,7 @@ REGRAS OBRIGATÓRIAS:
                 'anthropic-beta': 'max-tokens-3-5-sonnet-2024-07-15'
             },
             body: JSON.stringify({
-                model: 'claude-3-5-sonnet-latest',
+                model: 'claude-sonnet-4-5',
                 max_tokens: 8192,
                 system: systemPrompt,
                 messages: [

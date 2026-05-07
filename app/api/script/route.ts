@@ -88,8 +88,19 @@ MANDATORY: Every [VIDEO] prompt MUST include a specific time compression (e.g. "
 Format: [SUBJECT + COMPOSITION], [LIGHTING], [LENS/CAMERA EQUIVALENT], [STYLE matching channel persona], [MOOD], [photorealistic 8K sharp focus professional color grading]
 
 [THUMBNAIL]
-{Nano Banana thumbnail prompt, 30-40 words}
-Format: [MAIN VISUAL — single striking element], [DARK DRAMATIC BACKGROUND], [LIGHTING — high contrast], [EMOTIONAL TRIGGER — curiosity/shock/urgency], [photorealistic 8K dark dramatic lighting high contrast thumbnail composition]
+Generate a YouTube thumbnail prompt engineered for maximum CTR, not for cinematic beauty. Rules that CANNOT be broken:
+
+1. RECOGNIZABILITY IN 2 SECONDS: The main subject must be instantly identifiable even at 320x180px (mobile feed size). No abstract close-ups of flowers or soil. Use the most iconic visual representation of the niche.
+
+2. HUMAN ANCHOR: Always include a hand, arm, or human element. Channels without faces use hands. This increases CTR 3x.
+
+3. PROBLEM vs SOLUTION CONTRAST: Show both failure and success in the same frame. Dark/desaturated side for the problem, bright/golden side for the solution. This visually promises the viewer they will learn something.
+
+4. ONE DOMINANT ELEMENT at 60% of the frame. Not centered — slightly left or right of center.
+
+5. EXTREME LIGHT CONTRAST: The thumbnail must work in black and white. If the subject disappears without color, redesign.
+
+Format: [DOMINANT ELEMENT — specific, recognizable, large] + [CONTRAST ELEMENT — problem vs solution] + [HUMAN ELEMENT — hand, arm] + [LIGHTING — extreme contrast, golden on success, harsh on failure] + [SCALE NOTE: all elements must be recognizable at 320px width] + photorealistic 8K high contrast thumbnail composition
 
 [DIREÇÃO]
 {Production notes in Portuguese, 2-3 sentences}

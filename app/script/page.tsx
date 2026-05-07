@@ -384,20 +384,21 @@ function DarkScriptGenerator() {
       return;
     }
 
-    try {
-      const queueData = {
-        prompts: videoPrompts,
-        delay: 90,
-        savedAt: new Date().toISOString(),
-        videoTitle: title,
-      };
-      localStorage.setItem('darkmine_flow_queue', JSON.stringify(queueData));
-      setFlowToast(`✓ ${videoPrompts.length} clips enviados para a extensão`);
-      setTimeout(() => setFlowToast(null), 4000);
-    } catch {
-      setFlowToast('Erro ao enviar para a extensão. Tente novamente.');
-      setTimeout(() => setFlowToast(null), 4000);
-    }
+    const handleConfirmation = (e: MessageEvent) => {
+      if (e.data?.type === 'DARKMINE_FLOW_CONFIRMED') {
+        setFlowToast(`✓ ${videoPrompts.length} clips na fila da extensão`);
+        setTimeout(() => setFlowToast(null), 4000);
+      }
+      window.removeEventListener('message', handleConfirmation);
+    };
+    window.addEventListener('message', handleConfirmation);
+
+    window.postMessage({
+      type: 'DARKMINE_FLOW_QUEUE',
+      prompts: videoPrompts,
+      videoTitle: title,
+      delay: 90,
+    }, '*');
   };
 
   const handleGenerate = async () => {

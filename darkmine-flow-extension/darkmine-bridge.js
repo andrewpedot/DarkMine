@@ -1,54 +1,39 @@
 // DarkMine Bridge - Runs on darkmine.fun
-// Monitors localStorage for darkmine_flow_queue and syncs to chrome.storage
+// Listens for postMessage from DarkScript and forwards to chrome.storage
 
 (function() {
   'use strict';
 
-  const STORAGE_KEY = 'darkmine_flow_queue';
-  let lastQueueData = null;
+  // Listen for messages from DarkScript (or any page on darkmine.fun)
+  window.addEventListener('message', (event) => {
+    if (event.data?.type === 'DARKMINE_FLOW_QUEUE') {
+      const { prompts, videoTitle, delay } = event.data;
 
-  function processQueue() {
-    try {
-      const queueData = localStorage.getItem(STORAGE_KEY);
-      if (!queueData) return;
-
-      const data = JSON.parse(queueData);
-
-      // Skip if same data already processed
-      if (lastQueueData && lastQueueData.savedAt === data.savedAt) return;
-
-      lastQueueData = data;
+      if (!prompts || prompts.length === 0) {
+        console.log('[DarkMine Bridge] Empty queue received');
+        return;
+      }
 
       // Save to chrome.storage.local
       chrome.storage.local.set({
-        flowQueue: data.prompts,
-        flowDelay: data.delay || 90,
+        flowQueue: prompts,
+        flowDelay: delay || 90,
         queueRunning: false,
-        queueTitle: data.videoTitle || '',
-        queueSavedAt: data.savedAt,
+        queueTitle: videoTitle || '',
+        queueSavedAt: new Date().toISOString(),
+      }).then(() => {
+        // Send confirmation back to the sender
+        event.source.postMessage({
+          type: 'DARKMINE_FLOW_CONFIRMED',
+          count: prompts.length,
+        }, event.origin);
+
+        console.log(`[DarkMine Bridge] ${prompts.length} prompts saved to extension storage`);
+      }).catch((error) => {
+        console.error('[DarkMine Bridge] Error saving to storage:', error);
       });
-
-      // Remove from localStorage after successful sync
-      localStorage.removeItem(STORAGE_KEY);
-
-      console.log(`[DarkMine Bridge] Synced ${data.prompts?.length || 0} prompts to extension storage`);
-    } catch (error) {
-      console.error('[DarkMine Bridge] Error processing queue:', error);
-    }
-  }
-
-  // Initial check
-  processQueue();
-
-  // Poll for changes every 2 seconds
-  setInterval(processQueue, 2000);
-
-  // Also listen for storage events from same tab
-  window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY && event.newValue) {
-      processQueue();
     }
   });
 
-  console.log('[DarkMine Bridge] Active on darkmine.fun');
+  console.log('[DarkMine Bridge] Active on darkmine.fun - listening for DARKMINE_FLOW_QUEUE');
 })();

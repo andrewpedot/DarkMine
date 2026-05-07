@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(JSON.stringify(result)));
       } catch (error) {
         console.error('Script generation error:', error);
-        controller.enqueue(encoder.encode(JSON.stringify({ error: 'Erro ao gerar roteiro' })));
+        controller.enqueue(encoder.encode(JSON.stringify({ error: error instanceof Error ? error.message : 'Erro ao gerar roteiro' })));
       } finally {
         controller.close();
       }

@@ -58,6 +58,8 @@ DO NOT write generic documentary narration. Write narration that ONLY this speci
 
 **Niche accuracy:** Every visual, every fact, every analogy must be specific to "${niche}" — "${subniche || niche}". No generic footage. No generic facts. Specific varieties, specific measurements, specific conditions relevant to this exact sub-niche.
 
+**STRICT WORD LIMIT:** Each [NARRAÇÃO] block must be between 80 and 120 words. Count the words before submitting. If over 120, cut. This is not a suggestion — it is a hard constraint. Longer narration kills retention in time-lapse videos.
+
 ---
 
 ## OUTPUT FORMAT — STRICT
@@ -78,6 +80,8 @@ Generate exactly ${scenesCount} scenes. Each scene must contain all 5 blocks in 
 [VIDEO]
 {VEO3 / Kling AI prompt, 40-60 words}
 Format: [SHOT TYPE], [SUBJECT + ACTION], [ENVIRONMENT], [CAMERA MOVEMENT], [LIGHTING], [X days/hours compressed to Y seconds], [BBC Planet Earth II style / specify style matching persona], [4K 24fps]
+
+MANDATORY: Every [VIDEO] prompt MUST include a specific time compression (e.g. "7 days compressed to 12 seconds", "48-hour cycle compressed to 8 seconds"). Never write a video prompt without this.
 
 [IMAGEM]
 {Nano Banana prompt, 40-60 words}

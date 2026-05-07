@@ -579,7 +579,7 @@ function DarkScriptGenerator() {
                 <div>
                   <h2 className="text-lg font-bold text-white">{script.titulo}</h2>
                   <p className="text-xs text-gray-500 mt-1">
-                    {script.nicho} · {script.duracao_total}
+                    {script.nicho} · ~{Math.round((script.total_words || 3000) / 150)} min
                   </p>
                 </div>
                 <div className="flex gap-2">

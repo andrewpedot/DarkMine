@@ -15,91 +15,105 @@ function detectLanguage(text: string): string {
   return ptMatches >= enMatches ? 'pt' : 'en';
 }
 
-const narrationLabels: Record<string, string> = {
-  pt: 'Narração',
-  en: 'Narration',
-};
+const SYSTEM_PROMPT = `You are a world-class documentary scriptwriter and YouTube channel strategist. You have written scripts for BBC, National Geographic, and the top 1% of faceless YouTube channels across every niche imaginable.
+
+Your output is not generic content. Every script you write is deeply calibrated to a specific channel identity — its niche, its audience, its voice, its emotional register. You treat the channel persona like a director's brief: it overrides everything else.
+
+You write with the precision of a scientist, the rhythm of a poet, and the strategy of a growth hacker. Every word serves retention. Every sentence earns the next.`;
 
 function buildPrompt(title: string, niche: string, subniche: string, context: string, wordCount: number, totalMinutes: number) {
   const scenesCount = getScenesCount(wordCount);
-  const sceneDuration = Math.round(totalMinutes / scenesCount);
   const lang = detectLanguage(title);
-  const narrLabel = narrationLabels[lang];
-  const dirLabel = lang === 'pt' ? 'Direção' : 'Direção';
+  const sceneDurationSecs = Math.round((wordCount / scenesCount) * 0.5);
   const narrLang = lang === 'pt' ? 'Português' : 'Inglês';
 
-  const personaSection = context ? `
-CRITICAL — CHANNEL PERSONA & AUDIENCE:
+  const personaBlock = context ? `
+
+**CHANNEL PERSONA & AUDIENCE (CRITICAL — READ CAREFULLY):**
 ${context}
 
-This is not optional context. This defines EVERYTHING about how you write:
-- The narrator's voice, vocabulary and emotional register must match this persona exactly
-- The depth and complexity of information must match the audience's knowledge level
-- The pacing, sentence length and dramatic beats must reflect the channel's style
-- Every narration line must feel like it could only come from THIS specific channel, not a generic documentary
-- If the persona mentions a reference (e.g. Attenborough, specific YouTuber, specific style) — study that style and replicate its core patterns: sentence rhythm, use of silence, how facts are revealed, relationship with the viewer
+This persona brief is the single most important input. Before writing anything:
+1. Identify the narrator's voice archetype (calm authority? curious explorer? urgent investigator? warm educator?)
+2. Identify the audience's sophistication level (beginner? intermediate? expert enthusiast?)
+3. Identify the emotional register (contemplative? thrilling? unsettling? inspiring?)
+4. Identify the pacing style (slow-burn Attenborough? fast-cut MrBeast? methodical explainer?)
+5. Write AS this channel. A viewer who watches this channel regularly should immediately recognize the voice.
 
-Before writing the first word of narration, ask yourself: would a viewer who knows this channel recognize this as 'their' content? If not, rewrite.` : '';
+DO NOT write generic documentary narration. Write narration that ONLY this specific channel would write.` : `
 
-  const subnicheSection = subniche ? `
-SUBNICHE VISUAL CONTEXT: ${subniche}
-All video and image prompts must reflect this specific subniche. Don't generate generic visuals — generate visuals specific to ${subniche}. Specific plant varieties, specific climate conditions, specific geographic context if applicable.` : '';
+**No persona provided.** Default to: calm educational documentary style, intermediate audience, natural curiosity tone.`;
 
-  return `You are a specialized scriptwriter for dark documentary and curiosity YouTube channels.
+  return `## CHANNEL IDENTITY BRIEF
 
-DADOS DO PROJETO / PROJECT DATA:
-- Title: ${title}
-- Niche: ${niche}
-- Subniche: ${subniche || 'N/A'}${subnicheSection}
-- Channel Context: ${context || 'Niche content, no specific persona defined'}${personaSection}
-- Target Word Count: ${wordCount}
-- Number of Scenes: ${scenesCount}
-- Scene Duration: ~${sceneDuration} minutes each
+**Niche:** ${niche}
+**Sub-niche:** ${subniche || 'Not specified — infer from title and niche'}
+**Video Title:** ${title}
+**Target Duration:** ${wordCount} words across ${scenesCount} scenes${personaBlock}
 
-${lang === 'pt' ? 'IDIOMA: A narração DEVE ser em Português. Apenas [DIREÇÃO] fica em Português.' : 'LANGUAGE: Narration MUST be in the same language as the title (' + lang + '). Only [DIREÇÃO] stays in Portuguese.'}
+---
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NARRAÇÃO STYLE — DAVID ATTENBOROUGH PLANET EARTH II
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Write narration in the EXACT style of David Attenborough in Planet Earth II — calm authority, scientific precision, emotional restraint. Each narration block must:
-1. Open with a visual observation that hooks immediately — what the viewer is seeing right now
-2. Deliver ONE concrete practical tip or fact naturally embedded — never as a list, always as revelation
-3. Use short sentences. Real pauses come from periods, NOT ellipses. Maximum 3 ellipses per entire scene narration.
-4. End with a contemplative line that bridges to the next scene
-5. Average 80–120 words per narration block
-6. NEVER use melodramatic words — Attenborough is calm, never theatrical
-7. Always include at least one specific number, temperature, measurement or scientific fact per scene
+## SCRIPT REQUIREMENTS
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FORMAT — MANDATORY TAGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Each scene MUST contain exactly these tags:
-[${narrLabel.toUpperCase()}] -> ${narrLang} narration text. Style: Attenborough, calm authority, scientific precision.
-[VIDEO] -> English prompt for VEO3 / Kling AI (time-lapse generation). Format: [SHOT TYPE] + [SUBJECT ACTION] + [ENVIRONMENT DETAILS] + [CAMERA MOVEMENT] + [LIGHTING] + [DURATION COMPRESSED] + [STYLE REFERENCE] + [TECHNICAL SPECS]. Each video prompt: 40-60 words. Always mention compressed duration (ex: "7 days compressed to 12 seconds").
-[IMAGEM] -> English prompt for Nano Banana (image generation). Format: [SUBJECT] + [COMPOSITION] + [LIGHTING] + [CAMERA/LENS] + [STYLE] + [MOOD] + [TECHNICAL PARAMS]. Scientific photography style, photorealistic.
-[DIREÇÃO] -> Production notes in Portuguese (music, pacing, transitions, mood). Always in Portuguese.
-[THUMBNAIL] -> English thumbnail prompt optimized for Nano Banana. Format: [MAIN VISUAL] + [BACKGROUND] + [LIGHTING] + [EMOTIONAL TRIGGER]. Rules: dark dramatic background, single striking visual element, extreme close-up or high contrast composition, triggers curiosity or urgency. End with: photorealistic, 8K, dark dramatic lighting, high contrast, thumbnail composition.
+**Language:** Detect the language of the title "${title}" and write ALL narration in that exact language (${narrLang}). [DIREÇÃO] blocks always in Portuguese regardless.
+
+**Niche accuracy:** Every visual, every fact, every analogy must be specific to "${niche}" — "${subniche || niche}". No generic footage. No generic facts. Specific varieties, specific measurements, specific conditions relevant to this exact sub-niche.
+
+---
+
+## OUTPUT FORMAT — STRICT
+
+Generate exactly ${scenesCount} scenes. Each scene must contain all 5 blocks in this exact order:
+
+[CENA: {number} | {scene_title} | {start_time}–{end_time}]
+
+[NARRAÇÃO]
+{narration in detected language, 80-120 words}
+— Opens with what the viewer sees right now
+— Embeds ONE concrete practical insight as natural revelation, never as a list
+— Uses periods for rhythm, NOT ellipses (max 2 ellipses per scene)
+— Includes at least one specific number, measurement or scientific fact
+— Tone, vocabulary and pacing MUST match the channel persona brief above
+— Ends with a line that creates tension or curiosity for the next scene
+
+[VIDEO]
+{VEO3 / Kling AI prompt, 40-60 words}
+Format: [SHOT TYPE], [SUBJECT + ACTION], [ENVIRONMENT], [CAMERA MOVEMENT], [LIGHTING], [X days/hours compressed to Y seconds], [BBC Planet Earth II style / specify style matching persona], [4K 24fps]
+
+[IMAGEM]
+{Nano Banana prompt, 40-60 words}
+Format: [SUBJECT + COMPOSITION], [LIGHTING], [LENS/CAMERA EQUIVALENT], [STYLE matching channel persona], [MOOD], [photorealistic 8K sharp focus professional color grading]
+
+[THUMBNAIL]
+{Nano Banana thumbnail prompt, 30-40 words}
+Format: [MAIN VISUAL — single striking element], [DARK DRAMATIC BACKGROUND], [LIGHTING — high contrast], [EMOTIONAL TRIGGER — curiosity/shock/urgency], [photorealistic 8K dark dramatic lighting high contrast thumbnail composition]
+
+[DIREÇÃO]
+{Production notes in Portuguese, 2-3 sentences}
+— Música/trilha específica para o tom desta cena
+— Color grading e mood visual
+— Transição para próxima cena
+
+---
+
+## SCENE STRUCTURE — ${scenesCount} SCENES ACROSS ${wordCount} WORDS
+
+Scene timing: each scene = ${sceneDurationSecs} seconds of narration approximately.
+Total video duration: ~${totalMinutes} minutes.
+
+Scene arc must follow this emotional journey:
+- Scene 1: Hook — show the problem/phenomenon that makes the viewer need to watch
+- Scenes 2-${Math.round(scenesCount * 0.4)}: Build tension — deepen the why, add complexity
+- Scenes ${Math.round(scenesCount * 0.4) + 1}-${Math.round(scenesCount * 0.7)}: Turn — introduce the solution/revelation
+- Scenes ${Math.round(scenesCount * 0.7) + 1}-${scenesCount - 1}: Resolution — show the transformation
+- Scene ${scenesCount}: Payoff — emotional conclusion that rewards the viewer
+
+QUALITY BAR: If any narration line could appear in a different channel's script without feeling out of place, rewrite it until it couldn't.
+
+---
 
 Use "---" on a separate line to separate each scene.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SCENE TIMING FORMAT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Each scene is approximately ${sceneDuration} minutes. Use format: "X:XX" with leading zeros.
-Example: scene 1 starts at 0:00, scene 2 starts at ${sceneDuration}:00, etc.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-VIDEO PROMPT EXAMPLE (VEO3 / Kling AI)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"Ultra macro time-lapse, tomato flower petals slowly opening and releasing golden pollen in dappled morning light, tropical garden background softly blurred, camera locked off on tripod, warm directional light from left, 3 days compressed to 8 seconds, BBC Planet Earth II documentary style, 4K 24fps cinematic"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMAGE PROMPT EXAMPLE (Nano Banana)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"Extreme macro photograph of tomato pollen grains on anther surface, centered composition rule of thirds, dramatic side lighting from left casting long shadows, Canon MPE-65mm macro lens equivalent, botanical scientific photography style, clinical precision with organic beauty, photorealistic 8K sharp focus professional color grading"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-START NOW — Generate ${scenesCount} scenes in sequence. Each scene with all 5 blocks.`;
+START NOW — Generate ${scenesCount} scenes in sequence.`;
 }
 
 function parseScript(text: string, wordCount: number, totalMinutes: number): any[] {
@@ -112,6 +126,7 @@ function parseScript(text: string, wordCount: number, totalMinutes: number): any
   for (const raw of scenesRaw) {
     if (!raw.trim()) continue;
 
+    const cenaMatch = raw.match(/\[CENA:\s*(\d+)\s*\|\s*([^|\]]+)\s*\|\s*([\d:]+)–([\d:]+)\]/i);
     const narracaoMatch = raw.match(/\[NARRAÇÃO\]([\s\S]*?)(?=\[|$)/i) ||
                           raw.match(/\[NARRATION\]([\s\S]*?)(?=\[|$)/i);
     const videoMatch = raw.match(/\[VIDEO\]([\s\S]*?)(?=\[|$)/i);
@@ -126,12 +141,15 @@ function parseScript(text: string, wordCount: number, totalMinutes: number): any
     const endMinutes = sceneId * sceneDurationMinutes;
     const startTime = `${Math.floor(startMinutes / 60)}:${(startMinutes % 60).toString().padStart(2, '0')}`;
     const endTime = `${Math.floor(endMinutes / 60)}:${(endMinutes % 60).toString().padStart(2, '0')}`;
+    const sceneTitle = cenaMatch ? cenaMatch[2].trim() : `Cena ${sceneId}`;
+    const parsedStartTime = cenaMatch ? cenaMatch[3].trim() : startTime;
+    const parsedEndTime = cenaMatch ? cenaMatch[4].trim() : endTime;
 
     scenes.push({
       id: sceneId,
-      titulo_cena: `Cena ${sceneId}`,
-      tempo_inicio: startTime,
-      tempo_fim: endTime,
+      titulo_cena: sceneTitle,
+      tempo_inicio: parsedStartTime,
+      tempo_fim: parsedEndTime,
       narracao: narracaoMatch ? narracaoMatch[1].trim() : '',
       video: videoMatch ? videoMatch[1].trim() : '',
       imagem: imagemMatch ? imagemMatch[1].trim() : '',
@@ -166,6 +184,7 @@ export async function POST(request: Request) {
           model: 'claude-sonnet-4-5',
           max_tokens: 8192,
           stream: true,
+          system: SYSTEM_PROMPT,
           messages: [{
             role: 'user',
             content: buildPrompt(title, niche, subniche, context, wordCount, totalMinutes)

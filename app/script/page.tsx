@@ -311,9 +311,12 @@ function DarkScriptGenerator() {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.replace(/^data: */, '');
+          if (!jsonStr) continue;
           try {
-            const event = JSON.parse(line.slice(6));
+            const event = JSON.parse(jsonStr);
 
             if (event.type === 'progress') {
               setStreamingText(prev => prev + event.text);
@@ -338,7 +341,7 @@ function DarkScriptGenerator() {
               throw new Error(event.message);
             }
           } catch (parseErr) {
-            console.error('Parse error:', parseErr);
+            console.error('Parse error:', parseErr, 'Raw line:', trimmed.substring(0, 100));
           }
         }
       }

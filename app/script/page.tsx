@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { generateScript, type TimeLapseScript, type TimeLapseScene } from '../actions/generate-script';
+import type { TimeLapseScript, TimeLapseScene } from '../actions/generate-script';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -276,14 +276,36 @@ function DarkScriptGenerator() {
     setScript(null);
     setError(null);
     try {
-      const result = await generateScript(
-        title,
-        niche,
-        targetWords,
-        undefined,
-        subniche.trim() || undefined,
-        channelContext.trim() || undefined,
-      );
+      const response = await fetch('/api/script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          niche,
+          targetWords,
+          subniche: subniche.trim() || undefined,
+          channelContext: channelContext.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        throw new Error(err.error || `Erro ${response.status}`);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+      }
+
+      const jsonMatch = accumulated.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : accumulated;
+      const result: TimeLapseScript = JSON.parse(jsonStr);
       setScript(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar roteiro.');

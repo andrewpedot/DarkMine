@@ -88,19 +88,21 @@ MANDATORY: Every [VIDEO] prompt MUST include a specific time compression (e.g. "
 Format: [SUBJECT + COMPOSITION], [LIGHTING], [LENS/CAMERA EQUIVALENT], [STYLE matching channel persona], [MOOD], [photorealistic 8K sharp focus professional color grading]
 
 [THUMBNAIL]
-Generate a YouTube thumbnail prompt engineered for maximum CTR, not for cinematic beauty. Rules that CANNOT be broken:
+Generate a YouTube thumbnail prompt following the proven visual language of top time-lapse channels. MANDATORY rules:
 
-1. RECOGNIZABILITY IN 2 SECONDS: The main subject must be instantly identifiable even at 320x180px (mobile feed size). No abstract close-ups of flowers or soil. Use the most iconic visual representation of the niche.
+1. BLACK BACKGROUND — pure black (#000000). No gardens, no soil, no outdoor scenes. Objects float against darkness.
 
-2. HUMAN ANCHOR: Always include a hand, arm, or human element. Channels without faces use hands. This increases CTR 3x.
+2. CUTOUT OBJECTS — subjects appear isolated, cleanly cut out against the black background. No environmental context around them.
 
-3. PROBLEM vs SOLUTION CONTRAST: Show both failure and success in the same frame. Dark/desaturated side for the problem, bright/golden side for the solution. This visually promises the viewer they will learn something.
+3. LARGE BOLD TEXT — occupies 40-60% of the thumbnail. Use numbers when possible (days, temperature, percentage). Color: white or red/orange for numbers, white for words. Style: thick, bold, high contrast. Examples: "38°C KILLS IT", "WHY IT FAILS", "90 DAYS".
 
-4. ONE DOMINANT ELEMENT at 60% of the frame. Not centered — slightly left or right of center.
+4. MULTIPLE SUBJECTS if compilation — 2-4 plant/vegetable objects side by side with labels below each.
 
-5. EXTREME LIGHT CONTRAST: The thumbnail must work in black and white. If the subject disappears without color, redesign.
+5. HIGH SATURATION on healthy subjects (vivid red tomatoes), DESATURATED on failure subjects (grey/brown wilted plants).
 
-Format: [DOMINANT ELEMENT — specific, recognizable, large] + [CONTRAST ELEMENT — problem vs solution] + [HUMAN ELEMENT — hand, arm] + [LIGHTING — extreme contrast, golden on success, harsh on failure] + [SCALE NOTE: all elements must be recognizable at 320px width] + photorealistic 8K high contrast thumbnail composition
+6. NO photorealistic backgrounds — this is the single most important rule. Black background only.
+
+Format: [LARGE BOLD TEXT — specific words/numbers, placement: upper area] + [MAIN SUBJECT — isolated cutout, no background, highly saturated] + [CONTRAST SUBJECT — isolated cutout, desaturated, smaller] + [BLACK BACKGROUND — pure darkness] + [TECHNICAL: isolated objects, cutout style, black background, high saturation on main subject, 8K sharp]
 
 [DIREÇÃO]
 {Production notes in Portuguese, 2-3 sentences}

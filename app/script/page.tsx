@@ -293,19 +293,7 @@ function DarkScriptGenerator() {
         throw new Error(err.error || `Erro ${response.status}`);
       }
 
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-      }
-
-      const jsonMatch = accumulated.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : accumulated;
-      const result = JSON.parse(jsonStr);
+      const result = await response.json();
 
       if (result.error) {
         throw new Error(result.error);

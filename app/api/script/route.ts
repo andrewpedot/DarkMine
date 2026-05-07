@@ -88,21 +88,47 @@ MANDATORY: Every [VIDEO] prompt MUST include a specific time compression (e.g. "
 Format: [SUBJECT + COMPOSITION], [LIGHTING], [LENS/CAMERA EQUIVALENT], [STYLE matching channel persona], [MOOD], [photorealistic 8K sharp focus professional color grading]
 
 [THUMBNAIL]
-Generate a YouTube thumbnail prompt following the proven visual language of top time-lapse channels. MANDATORY rules:
+Generate a YouTube thumbnail prompt following the EXACT visual language of top time-lapse channels with 20M+ views. This is not a cinematic photograph — it is a strategic CTR-optimized composition.
 
-1. BLACK BACKGROUND — pure black (#000000). No gardens, no soil, no outdoor scenes. Objects float against darkness.
+MANDATORY RULES — none can be broken:
 
-2. CUTOUT OBJECTS — subjects appear isolated, cleanly cut out against the black background. No environmental context around them.
+1. BACKGROUND: Pure black (#000000). No gardens, no soil, no sky, no outdoor scenes. No gradients. Absolute darkness.
 
-3. LARGE BOLD TEXT — occupies 40-60% of the thumbnail. Use numbers when possible (days, temperature, percentage). Color: white or red/orange for numbers, white for words. Style: thick, bold, high contrast. Examples: "38°C KILLS IT", "WHY IT FAILS", "90 DAYS".
+2. TEXT — occupies upper 35% of the thumbnail:
+   - Large, bold, thick font — Impact or similar heavy sans-serif
+   - Main keyword in RED (the plant/subject name)
+   - Supporting words in WHITE
+   - Example structure: "WHY YOUR [TOMATOES] FAIL" or "[38°C] KILLS YOUR GARDEN"
+   - Text must be readable at 320px width (mobile feed size)
+   - Place text in upper area, NOT centered vertically
 
-4. MULTIPLE SUBJECTS if compilation — 2-4 plant/vegetable objects side by side with labels below each.
+3. MAIN SUBJECT (success/healthy):
+   - Isolated cutout against black background — NO environmental context
+   - Highly saturated, vivid colors — almost hyper-real
+   - Thin white outline/stroke (3-5px) around the cutout
+   - Position: center-left of frame, vertically centered in lower 65%
+   - Size: large, dominant — takes up 35-40% of total frame width
+   - Leave 15% margin at bottom (YouTube progress bar covers this area)
 
-5. HIGH SATURATION on healthy subjects (vivid red tomatoes), DESATURATED on failure subjects (grey/brown wilted plants).
+4. CONTRAST SUBJECT (failure/problem):
+   - Isolated cutout against black background
+   - FULLY DESATURATED — greyscale only, no color
+   - Thin white outline/stroke matching the main subject
+   - Position: right side of frame, same height as main subject
+   - Size: slightly smaller than main subject
 
-6. NO photorealistic backgrounds — this is the single most important rule. Black background only.
+5. DATA ELEMENT (number/measurement):
+   - Always include a specific number: temperature (38°C), days (90 DAYS), percentage (30%)
+   - If temperature: use ANALOG/CLASSIC red mercury thermometer, NOT digital
+   - Temperature reading shown as large text beside the thermometer
+   - Position: between the two subjects, center of frame
 
-Format: [LARGE BOLD TEXT — specific words/numbers, placement: upper area] + [MAIN SUBJECT — isolated cutout, no background, highly saturated] + [CONTRAST SUBJECT — isolated cutout, desaturated, smaller] + [BLACK BACKGROUND — pure darkness] + [TECHNICAL: isolated objects, cutout style, black background, high saturation on main subject, 8K sharp]
+6. WHITE OUTLINES: All cutout objects must have thin white stroke/outline. This is the signature visual language of the top channels in this niche.
+
+7. NO photorealistic backgrounds. NO hands unless they are the primary subject. NO complex scenes.
+
+Format for the prompt:
+"[BOLD TEXT — specific words in upper area, RED for main keyword WHITE for others] + [MAIN SUBJECT — isolated cutout, highly saturated, white outline, center-left] + [CONTRAST SUBJECT — isolated cutout, fully desaturated greyscale, white outline, right side] + [DATA ELEMENT — analog thermometer with temperature OR specific number in large text, center] + [pure black background, isolated cutout style, white outlines on all objects, high saturation main subject, greyscale contrast subject, 8K sharp, YouTube thumbnail composition]"
 
 [DIREÇÃO]
 {Production notes in Portuguese, 2-3 sentences}

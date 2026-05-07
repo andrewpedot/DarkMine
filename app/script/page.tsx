@@ -373,38 +373,70 @@ function DarkScriptGenerator() {
   };
 
   const handleSendToFlow = () => {
-    if (!script) return;
+    console.log('scriptData:', script, 'rawScript:', streamingText?.substring(0, 200));
 
-    const allPrompts: string[] = [];
-    for (const cena of script.cenas) {
-      const videoText = cena.video || cena.prompt_video || '';
-      if (!videoText.trim()) continue;
+    const scriptData = script;
+    let videoPrompts: string[] = [];
 
-      const clipPattern = /\[CLIP \d+\/\d+\]/gi;
-      const clips = videoText.split(/(?=\[CLIP )/i).filter(c => c.trim());
+    if (scriptData && scriptData.cenas) {
+      videoPrompts = scriptData.cenas.flatMap((cena: any) =>
+        (cena.blocos || cena.blocks || [])
+          .filter((b: any) =>
+            b.tipo === 'video' || b.type === 'video' ||
+            (b.label || '').toLowerCase().includes('vídeo') ||
+            (b.label || '').toLowerCase().includes('video')
+          )
+          .map((b: any) => b.conteudo || b.content || b.text || '')
+          .filter(Boolean)
+      );
+    } else if (scriptData && Array.isArray(scriptData)) {
+      videoPrompts = scriptData.flatMap((cena: any) =>
+        (cena.blocos || cena.blocks || [])
+          .filter((b: any) => b.tipo === 'video' || b.type === 'video')
+          .map((b: any) => b.conteudo || b.content || b.text || '')
+          .filter(Boolean)
+      );
+    }
 
-      for (const clip of clips) {
-        if (clip.match(clipPattern)) {
-          const clipText = clip.replace(/\[CLIP \d+\/\d+\]/i, '').trim();
-          if (clipText) {
-            allPrompts.push(clipText);
+    if (videoPrompts.length === 0 && scriptData?.cenas) {
+      for (const cena of scriptData.cenas) {
+        const videoText = cena.video || cena.prompt_video || '';
+        if (!videoText.trim()) continue;
+
+        const clipPattern = /\[CLIP \d+\/\d+\]/gi;
+        const clips = videoText.split(/(?=\[CLIP )/i).filter(c => c.trim());
+
+        for (const clip of clips) {
+          if (clip.match(clipPattern)) {
+            const clipText = clip.replace(/\[CLIP \d+\/\d+\]/i, '').trim();
+            if (clipText) {
+              videoPrompts.push(clipText);
+            }
+          } else if (videoText && !videoText.includes('[CLIP')) {
+            videoPrompts.push(videoText.trim());
+            break;
           }
-        } else if (videoText && !videoText.includes('[CLIP')) {
-          allPrompts.push(videoText.trim());
-          break;
         }
       }
     }
 
-    if (allPrompts.length === 0) {
-      setFlowToast('Nenhum prompt de vídeo encontrado no roteiro.');
-      setTimeout(() => setFlowToast(null), 3000);
+    if (videoPrompts.length === 0 && streamingText) {
+      const clipRegex = /\[CLIP\s+\d+\/\d+\][^\[]+/g;
+      const matches = streamingText.match(clipRegex) || [];
+      videoPrompts = matches.map((m: string) => m.replace(/^\[CLIP\s+\d+\/\d+\]\s*/, '').trim());
+    }
+
+    console.log('Video prompts encontrados:', videoPrompts.length);
+
+    if (videoPrompts.length === 0) {
+      setFlowToast('Nenhum prompt de vídeo encontrado. Verifique se o roteiro foi gerado corretamente.');
+      setTimeout(() => setFlowToast(null), 4000);
       return;
     }
 
     const handleConfirmation = (e: MessageEvent) => {
       if (e.data?.type === 'DARKMINE_FLOW_CONFIRMED') {
-        setFlowToast(`✓ ${allPrompts.length} clips prontos na extensão — abra o ícone ⚡`);
+        setFlowToast(`✓ ${videoPrompts.length} clips prontos na extensão — abra o ícone ⚡`);
         setTimeout(() => setFlowToast(null), 5000);
       }
       window.removeEventListener('message', handleConfirmation);
@@ -413,7 +445,7 @@ function DarkScriptGenerator() {
 
     window.postMessage({
       type: 'DARKMINE_FLOW_QUEUE',
-      prompts: allPrompts,
+      prompts: videoPrompts,
       videoTitle: title,
       delay: 90,
     }, '*');

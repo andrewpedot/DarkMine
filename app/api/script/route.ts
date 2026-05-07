@@ -1,6 +1,4 @@
-import { TimeLapseScript } from '@/app/actions/generate-script';
-
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function getScenesCount(targetWords: number): number {
   if (targetWords <= 2000) return 4;
@@ -39,79 +37,101 @@ ESTILO DE NARRAÇÃO:
 Inicie o roteiro agora:`;
 }
 
-function parseScript(text: string): any[] {
+function parseScript(text: string, wordCount: number): any[] {
   const scenesRaw = text.split(/---/);
-  const scenes = [];
+  const scenes: any[] = [];
   let sceneId = 1;
-  
+  const sceneDuration = Math.round(wordCount / (scenesRaw.length || 1) / 150);
+
   for (const raw of scenesRaw) {
     if (!raw.trim()) continue;
-    
+
     const narracaoMatch = raw.match(/\[NARRAÇÃO\]([\s\S]*?)(?=\[|$)/i);
     const videoMatch = raw.match(/\[VIDEO\]([\s\S]*?)(?=\[|$)/i);
     const imagemMatch = raw.match(/\[IMAGEM\]([\s\S]*?)(?=\[|$)/i);
     const direcaoMatch = raw.match(/\[DIREÇÃO\]([\s\S]*?)(?=\[|$)/i);
-    
+
     if (!narracaoMatch && !videoMatch && !imagemMatch && !direcaoMatch) continue;
 
     scenes.push({
-      id: sceneId++,
-      titulo_cena: `Cena ${sceneId - 1}`,
-      tempo_inicio: `${Math.floor((sceneId - 2) * 30 / 60)}:${((sceneId - 2) * 30 % 60).toString().padStart(2, '0')}`,
-      tempo_fim: `${Math.floor((sceneId - 1) * 30 / 60)}:${((sceneId - 1) * 30 % 60).toString().padStart(2, '0')}`,
+      id: sceneId,
+      titulo_cena: `Cena ${sceneId}`,
+      tempo_inicio: `${Math.floor((sceneId - 1) * sceneDuration / 60)}:${((sceneId - 1) * sceneDuration % 60).toString().padStart(2, '0')}`,
+      tempo_fim: `${Math.floor(sceneId * sceneDuration / 60)}:${(sceneId * sceneDuration % 60).toString().padStart(2, '0')}`,
       narracao: narracaoMatch ? narracaoMatch[1].trim() : '',
-      prompt_video: videoMatch ? videoMatch[1].trim() : '',
-      prompt_imagem: imagemMatch ? imagemMatch[1].trim() : '',
+      video: videoMatch ? videoMatch[1].trim() : '',
+      imagem: imagemMatch ? imagemMatch[1].trim() : '',
       direcao: direcaoMatch ? direcaoMatch[1].trim() : '',
     });
+    sceneId++;
   }
-  
+
   return scenes;
 }
 
 export async function POST(request: Request) {
   const { title, niche, subniche, context, wordCount } = await request.json();
-  
+
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic();
-  
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
   const encoder = new TextEncoder();
-  
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        let fullText = '';
+
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'start' })}\n\n`));
+
         const response = await client.messages.create({
           model: 'claude-sonnet-4-5',
-          max_tokens: 8000,
+          max_tokens: 8192,
           stream: true,
-          messages: [{ role: 'user', content: buildPrompt(title, niche, subniche, context, wordCount) }],
+          messages: [{
+            role: 'user',
+            content: buildPrompt(title, niche, subniche, context, wordCount)
+          }]
         });
-        
-        let fullText = '';
+
         for await (const chunk of response) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
             fullText += chunk.delta.text;
+            controller.enqueue(encoder.encode(
+              `data: ${JSON.stringify({ type: 'progress', text: chunk.delta.text })}\n\n`
+            ));
           }
         }
-        
-        const parsed = parseScript(fullText);
-        const result: TimeLapseScript = {
+
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'parsing' })}\n\n`));
+
+        const cenas = parseScript(fullText, wordCount);
+        const result = {
           titulo: title,
           nicho: niche,
-          duracao_total: `${Math.floor(parsed.length * 30 / 60)}:${(parsed.length * 30 % 60).toString().padStart(2, '0')}`,
-          cenas: parsed
+          duracao_total: `${Math.floor(cenas.length * 30 / 60)}:${(cenas.length * 30 % 60).toString().padStart(2, '0')}`,
+          cenas
         };
-        controller.enqueue(encoder.encode(JSON.stringify(result)));
+
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: 'done', data: result })}\n\n`
+        ));
       } catch (error) {
         console.error('Script generation error:', error);
-        controller.enqueue(encoder.encode(JSON.stringify({ error: error instanceof Error ? error.message : 'Erro ao gerar roteiro' })));
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: 'error', message: error instanceof Error ? error.message : String(error) })}\n\n`
+        ));
       } finally {
         controller.close();
       }
     }
   });
-  
+
   return new Response(stream, {
-    headers: { 'Content-Type': 'application/json' }
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    }
   });
 }

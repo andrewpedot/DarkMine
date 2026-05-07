@@ -263,6 +263,8 @@ function DarkScriptGenerator() {
   const [script, setScript] = useState<TimeLapseScript | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<CopiedState>(null);
+  const [streamingText, setStreamingText] = useState('');
+  const [generationStage, setGenerationStage] = useState<'idle' | 'generating' | 'parsing' | 'done'>('idle');
 
   const handleCopy = (text: string, sceneId: number, block: BlockType) => {
     navigator.clipboard.writeText(text);
@@ -275,6 +277,9 @@ function DarkScriptGenerator() {
     setIsGenerating(true);
     setScript(null);
     setError(null);
+    setStreamingText('');
+    setGenerationStage('generating');
+
     try {
       const response = await fetch('/api/script', {
         method: 'POST',
@@ -289,32 +294,57 @@ function DarkScriptGenerator() {
       });
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
-        throw new Error(err.error || `Erro ${response.status}`);
+        const text = await response.text();
+        throw new Error(`Erro ${response.status}: ${text}`);
       }
 
-      const result = await response.json();
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      if (result.error) {
-        throw new Error(result.error);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+
+            if (event.type === 'progress') {
+              setStreamingText(prev => prev + event.text);
+            } else if (event.type === 'parsing') {
+              setGenerationStage('parsing');
+            } else if (event.type === 'done') {
+              const result = event.data;
+              if (!result.cenas || !Array.isArray(result.cenas)) {
+                throw new Error('Roteiro gerado em formato inválido.');
+              }
+              const transformed: TimeLapseScript = {
+                ...result,
+                cenas: result.cenas.map((scene: any) => ({
+                  ...scene,
+                  prompt_video: scene.video || scene.prompt_video || '',
+                  prompt_imagem: scene.imagem || scene.prompt_imagem || '',
+                })),
+              };
+              setScript(transformed);
+              setGenerationStage('done');
+            } else if (event.type === 'error') {
+              throw new Error(event.message);
+            }
+          } catch (parseErr) {
+            console.error('Parse error:', parseErr);
+          }
+        }
       }
-
-      if (!result.cenas || !Array.isArray(result.cenas)) {
-        throw new Error('Roteiro gerado em formato inválido.');
-      }
-
-      const transformed: TimeLapseScript = {
-        ...result,
-        cenas: result.cenas.map((scene: any) => ({
-          ...scene,
-          prompt_video: scene.video || scene.prompt_video || '',
-          prompt_imagem: scene.imagem || scene.prompt_imagem || '',
-        })),
-      };
-
-      setScript(transformed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar roteiro.');
+      setGenerationStage('idle');
     } finally {
       setIsGenerating(false);
     }
@@ -459,12 +489,31 @@ function DarkScriptGenerator() {
           </div>
         )}
 
-        {/* ── Skeleton ─────────────────────────────────────────────────────── */}
+        {/* ── Streaming Preview ───────────────────────────────────────────── */}
         {isGenerating && (
-          <div className="space-y-4">
-            {Array.from({ length: skeletonCount }).map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
+          <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+            <div className="bg-white/[0.03] px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500"></span>
+                  </span>
+                  <span className="text-sm font-medium text-white">
+                    {generationStage === 'parsing' ? 'Processando...' : 'Gerando roteiro...'}
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-gray-500">
+                ~{streamingText.length} chars
+              </span>
+            </div>
+            <div className="p-5">
+              <div className="font-mono text-xs text-gray-400 whitespace-pre-wrap max-h-96 overflow-y-auto leading-relaxed">
+                {streamingText || 'Aguardando resposta...'}
+                <span className="inline-block w-2 h-3.5 bg-violet-400 ml-1 animate-pulse align-middle"></span>
+              </div>
+            </div>
           </div>
         )}
 

@@ -282,9 +282,9 @@ function DarkScriptGenerator() {
         body: JSON.stringify({
           title,
           niche,
-          targetWords,
           subniche: subniche.trim() || undefined,
-          channelContext: channelContext.trim() || undefined,
+          context: channelContext.trim() || undefined,
+          wordCount: targetWords,
         }),
       });
 

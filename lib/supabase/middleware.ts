@@ -33,8 +33,13 @@ export async function updateSession(request: NextRequest) {
 
   // Rotas públicas que não precisam de autenticação
   const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth');
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
   if (!user && !isPublicRoute) {
+    if (isApiRoute) {
+      // Para rotas API, retorna erro 401 em vez de redirecionar
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     // Redireciona usuários não autenticados para a tela de login
     const url = request.nextUrl.clone();
     url.pathname = '/login';

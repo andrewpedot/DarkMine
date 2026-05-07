@@ -24,8 +24,10 @@ You write with the precision of a scientist, the rhythm of a poet, and the strat
 function buildPrompt(title: string, niche: string, subniche: string, context: string, wordCount: number, totalMinutes: number) {
   const scenesCount = getScenesCount(wordCount);
   const lang = detectLanguage(title);
-  const sceneDurationSecs = Math.round((wordCount / scenesCount) * 0.5);
   const narrLang = lang === 'pt' ? 'Português' : 'Inglês';
+  const totalSeconds = Math.round((wordCount / 150) * 60);
+  const secondsPerScene = Math.round(totalSeconds / scenesCount);
+  const clipsPerScene = Math.ceil(secondsPerScene / 8);
 
   const personaBlock = context ? `
 
@@ -78,10 +80,31 @@ Generate exactly ${scenesCount} scenes. Each scene must contain all 5 blocks in 
 — Ends with a line that creates tension or curiosity for the next scene
 
 [VIDEO]
-{VEO3 / Kling AI prompt, 40-60 words}
-Format: [SHOT TYPE], [SUBJECT + ACTION], [ENVIRONMENT], [CAMERA MOVEMENT], [LIGHTING], [X days/hours compressed to Y seconds], [BBC Planet Earth II style / specify style matching persona], [4K 24fps]
+VIDEO CLIPS — CRITICAL MATH:
+Each scene is ${secondsPerScene} seconds long.
+The VEO3 generates exactly 8-second clips.
+Therefore each scene needs exactly ${clipsPerScene} VIDEO prompts.
+Generate EXACTLY ${clipsPerScene} [CLIP X/${clipsPerScene}] prompts per scene.
+No more, no less.
 
-MANDATORY: Every [VIDEO] prompt MUST include a specific time compression (e.g. "7 days compressed to 12 seconds", "48-hour cycle compressed to 8 seconds"). Never write a video prompt without this.
+Each clip is ONE continuous 8-second shot.
+Do NOT describe multi-stage actions in a single clip.
+ONE action per clip only.
+
+CLIP VARIETY — vary shots across the ${clipsPerScene} clips:
+- Opening clips (1-3): wide/establishing shots, slow zoom
+- Middle clips (4-${clipsPerScene - 3}): close-ups, macro, different angles
+- Closing clips (${clipsPerScene - 2}-${clipsPerScene}): detail shots, transition to next scene
+
+FORMAT for each clip (mandatory):
+[CLIP X/${clipsPerScene}] [SHOT TYPE], [SINGLE ACTION in 8 seconds], [ENVIRONMENT], [CAMERA MOVEMENT — locked off OR slow push OR slow pull], [LIGHTING], [X days/hours compressed into 8 seconds OR real-time 8-second shot], BBC Planet Earth II style, 4K 24fps, VEO3 8-second clip
+
+EXAMPLE (for a germination scene):
+[CLIP 1/${clipsPerScene}] Wide establishing shot, dry soil surface under harsh tropical midday light, camera locked off, harsh overhead sun, real-time 8-second shot showing heat shimmer above soil, BBC Planet Earth II style, 4K 24fps, VEO3 8-second clip
+
+[CLIP 2/${clipsPerScene}] Extreme macro shot, single tomato seed on dark moist soil surface, camera locked off on tripod, soft diffused light from left, real-time 8-second shot, BBC Planet Earth II intimate botanical style, 4K 24fps, VEO3 8-second clip
+
+[CLIP 3/${clipsPerScene}] Underground macro shot, tiny white root tip emerging from cracked seed coat pushing into soil, camera locked off, warm amber backlight, 18 hours compressed into 8 seconds, BBC Planet Earth II scientific style, 4K 24fps, VEO3 8-second clip
 
 [IMAGEM]
 {Nano Banana prompt, 40-60 words}
@@ -145,7 +168,7 @@ IGNORE any visual logic suggesting a garden background. All subjects float on pu
 
 ## SCENE STRUCTURE — ${scenesCount} SCENES ACROSS ${wordCount} WORDS
 
-Scene timing: each scene = ${sceneDurationSecs} seconds of narration approximately.
+Scene timing: each scene = ${secondsPerScene} seconds of narration approximately.
 Total video duration: ~${totalMinutes} minutes.
 
 Scene arc must follow this emotional journey:

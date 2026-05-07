@@ -144,12 +144,14 @@ function SceneBlock({
   sceneId,
   copied,
   onCopy,
+  clipLabel,
 }: {
   type: BlockType;
   text: string;
   sceneId: number;
   copied: CopiedState;
   onCopy: (text: string, sceneId: number, block: BlockType) => void;
+  clipLabel?: string;
 }) {
   const cfg = BLOCK_CONFIG[type];
   const isCopied = copied?.sceneId === sceneId && copied?.block === type;
@@ -163,7 +165,7 @@ function SceneBlock({
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cfg.textClass}>{cfg.icon}</span>
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${cfg.badgeClass}`}>
-            {cfg.label}
+            {clipLabel || cfg.label}
           </span>
           <span className="text-[10px] text-gray-600">{cfg.sublabel}</span>
         </div>
@@ -245,9 +247,42 @@ function SceneCard({
       {expanded && (
         <div className="p-5 flex flex-col gap-3">
           {(visibleBlocks === 'all' ? BLOCK_ORDER : [visibleBlocks as BlockType]).map(blockType => {
+            if (blockType === 'video') {
+              const videoText = getVideoText();
+              const clipPattern = /\[CLIP \d+\/\d+\]/gi;
+              const clips = videoText.split(/(?=\[CLIP )/i).filter(c => c.trim());
+              if (clips.length > 0 && clips[0].match(clipPattern)) {
+                return clips.map((clip, clipIdx) => {
+                  const clipMatch = clip.match(/\[CLIP (\d+)\/(\d+)\]/i);
+                  const clipNum = clipMatch ? clipMatch[1] : clipIdx + 1;
+                  const clipTotal = clipMatch ? clipMatch[2] : clips.length;
+                  const clipText = clip.replace(/\[CLIP \d+\/\d+\]/i, '').trim();
+                  return (
+                    <SceneBlock
+                      key={`video-clip-${clipIdx}`}
+                      type={blockType}
+                      text={clipText}
+                      clipLabel={`CLIP ${clipNum}/${clipTotal}`}
+                      sceneId={scene.id}
+                      copied={copied}
+                      onCopy={onCopy}
+                    />
+                  );
+                });
+              }
+              return (
+                <SceneBlock
+                  key={blockType}
+                  type={blockType}
+                  text={videoText}
+                  sceneId={scene.id}
+                  copied={copied}
+                  onCopy={onCopy}
+                />
+              );
+            }
             let text = '';
             if (blockType === 'narracao') text = scene.narracao;
-            if (blockType === 'video') text = getVideoText();
             if (blockType === 'imagem') text = getImagemText();
             if (blockType === 'direcao') text = scene.direcao;
             if (blockType === 'thumbnail') text = scene.thumbnail || '';
@@ -443,6 +478,11 @@ function DarkScriptGenerator() {
   };
 
   const totalWords = script?.cenas.reduce((acc, s) => acc + (s.narracao?.split(/\s+/).length || 0), 0) || 0;
+  const totalClips = script?.cenas.reduce((acc, s) => {
+    const videoText = s.video || s.prompt_video || '';
+    const clipMatches = (videoText.match(/\[CLIP \d+\/\d+\]/gi) || []).length;
+    return acc + (clipMatches > 0 ? clipMatches : 1);
+  }, 0) || 0;
 
   return (
     <div className="min-h-screen bg-[#080b12] relative overflow-x-hidden text-gray-200">
@@ -695,7 +735,7 @@ function DarkScriptGenerator() {
 
             <div className="text-center py-4 border-t border-white/5">
               <p className="text-xs text-gray-600">
-                Roteiro gerado · ~{totalWords} palavras · {script.cenas.length} cenas · Idioma: {script.idioma || 'Português'}
+                Roteiro gerado · {totalClips} clips de 8s · {script.cenas.length} cenas · ~{Math.round((script.total_words || 3000) / 150)} min de footage · Idioma: {script.idioma || 'Português'}
               </p>
             </div>
           </div>

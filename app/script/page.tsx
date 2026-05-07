@@ -384,17 +384,18 @@ function DarkScriptGenerator() {
       return;
     }
 
-    const hasChrome = typeof (globalThis as any).chrome !== 'undefined' && (globalThis as any).chrome?.storage;
-    if (hasChrome) {
-      (globalThis as any).chrome.storage.local.set({
-        flowQueue: videoPrompts,
-        flowDelay: 90,
-        queueRunning: false,
-      });
-      setFlowToast(`✓ ${videoPrompts.length} prompts enviados para a extensão`);
-      setTimeout(() => setFlowToast(null), 3000);
-    } else {
-      setFlowToast('Instale a extensão DarkMine Flow Sender para usar esta função');
+    try {
+      const queueData = {
+        prompts: videoPrompts,
+        delay: 90,
+        savedAt: new Date().toISOString(),
+        videoTitle: title,
+      };
+      localStorage.setItem('darkmine_flow_queue', JSON.stringify(queueData));
+      setFlowToast(`✓ ${videoPrompts.length} clips enviados para a extensão`);
+      setTimeout(() => setFlowToast(null), 4000);
+    } catch {
+      setFlowToast('Erro ao enviar para a extensão. Tente novamente.');
       setTimeout(() => setFlowToast(null), 4000);
     }
   };

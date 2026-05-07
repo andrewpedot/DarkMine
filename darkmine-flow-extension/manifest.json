@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "DarkMine Flow Sender",
+  "version": "1.0.0",
+  "description": "Envia prompts de vídeo do DarkScript para o Flow VEO3",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://labs.google.com/*",
+    "https://www.darkmine.fun/*"
+  ],
+  "action": {
+    "default_title": "DarkMine Flow"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://labs.google.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.darkmine.fun/*"],
+      "js": ["darkmine-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

@@ -331,6 +331,10 @@ function DarkScriptGenerator() {
   const [isSaving, setIsSaving] = useState(false);
   const [fullNarration, setFullNarration] = useState('');
   const [flowToast, setFlowToast] = useState<string | null>(null);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [savedScripts, setSavedScripts] = useState<any[]>([]);
+  const [isLoadingScripts, setIsLoadingScripts] = useState(false);
+  const [rawScript, setRawScript] = useState<string>('');
 
   const handleCopy = (text: string, sceneId: number, block: BlockType) => {
     navigator.clipboard.writeText(text);
@@ -350,26 +354,71 @@ function DarkScriptGenerator() {
     if (!script) return;
     setIsSaving(true);
     try {
-      const response = await fetch('/api/library/save', {
+      const response = await fetch('/api/script/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: script.titulo,
-          niche: script.nicho,
-          script_content: script,
-          status: 'finalizado',
+          titulo: script.titulo,
+          nicho: script.nicho,
+          subnicho: subniche,
+          contexto: channelContext,
+          wordcount: targetWords,
+          conteudo: script,
+          conteudo_raw: rawScript,
         }),
       });
+      const data = await response.json();
+      console.log('Salvar resultado:', data);
       if (response.ok) {
-        router.push('/library');
+        setFlowToast('✓ Roteiro salvo na biblioteca!');
+        setTimeout(() => setFlowToast(null), 3000);
       } else {
-        throw new Error('Erro ao salvar');
+        throw new Error(data.error || 'Erro ao salvar');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar na biblioteca.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const loadFromLibrary = async () => {
+    setShowLoadModal(true);
+    setIsLoadingScripts(true);
+    try {
+      const response = await fetch('/api/script/load?limit=10');
+      const data = await response.json();
+      console.log('Scripts carregados:', data);
+      if (data.scripts) {
+        setSavedScripts(data.scripts);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar scripts:', err);
+      setFlowToast('Erro ao carregar roteiros salvos.');
+    } finally {
+      setIsLoadingScripts(false);
+    }
+  };
+
+  const selectScript = (savedScript: any) => {
+    console.log('Selecionando script:', savedScript);
+    if (savedScript.conteudo) {
+      setScript(savedScript.conteudo);
+      setTitle(savedScript.conteudo.titulo || savedScript.titulo || '');
+      setNiche(savedScript.conteudo.nicho || savedScript.nicho || '');
+      setSubniche(savedScript.conteudo.subnicho || savedScript.subnicho || '');
+      setTargetWords(savedScript.wordcount || 3000);
+      setFilter('all');
+      setGenerationStage('done');
+
+      if (savedScript.conteudo.cenas) {
+        const narrationText = savedScript.conteudo.cenas
+          .map((s: any, i: number) => `[CENA ${i + 1}]\n${s.narracao}`)
+          .join('\n\n');
+        setFullNarration(narrationText);
+      }
+    }
+    setShowLoadModal(false);
   };
 
   const handleSendToFlow = () => {
@@ -512,6 +561,7 @@ function DarkScriptGenerator() {
                 .join('\n\n');
               setFullNarration(narrationText);
               setScript(result);
+              setRawScript(streamingText);
               setGenerationStage('done');
             } else if (event.type === 'error') {
               throw new Error(event.message);
@@ -639,9 +689,19 @@ function DarkScriptGenerator() {
               </div>
 
               <button
+                onClick={loadFromLibrary}
+                className="h-11 px-4 rounded-xl bg-white/5 text-gray-400 text-sm font-medium border border-white/10 transition-all hover:bg-white/10 hover:text-white hover:border-white/20 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                Carregar
+              </button>
+
+              <button
                 onClick={handleGenerate}
                 disabled={!title.trim() || !niche.trim() || isGenerating}
-                className="h-11 w-full sm:w-auto sm:ml-auto px-8 rounded-xl bg-violet-600 text-white text-sm font-bold transition-all hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[180px] shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:shadow-[0_0_30px_rgba(139,92,246,0.35)]"
+                className="h-11 w-full sm:w-auto px-8 rounded-xl bg-violet-600 text-white text-sm font-bold transition-all hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:shadow-[0_0_30px_rgba(139,92,246,0.35)]"
               >
                 {isGenerating ? (
                   <>
@@ -649,7 +709,7 @@ function DarkScriptGenerator() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Gerando Roteiro...
+                    Gerando...
                   </>
                 ) : (
                   'Gerar Roteiro'
@@ -796,6 +856,63 @@ function DarkScriptGenerator() {
         {flowToast && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl bg-black/90 border border-white/20 text-sm font-medium text-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
             {flowToast}
+          </div>
+        )}
+
+        {showLoadModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#0d1117] border border-white/10 rounded-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <h3 className="text-lg font-bold text-white">Roteiros Salvos</h3>
+                <button
+                  onClick={() => setShowLoadModal(false)}
+                  className="text-gray-500 hover:text-white transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {isLoadingScripts ? (
+                  <div className="flex items-center justify-center py-8">
+                    <svg className="w-6 h-6 animate-spin text-violet-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  </div>
+                ) : savedScripts.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhum roteiro salvo ainda.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {savedScripts.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => selectScript(s)}
+                        className="w-full text-left p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-white truncate">{s.titulo}</h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {s.nicho || 'Sem nicho'} · {s.subnicho || ''}
+                            </p>
+                            <p className="text-[10px] text-gray-600 mt-1">
+                              {s.wordcount} palavras · {new Date(s.criado_em).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                          <svg className="w-4 h-4 text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>

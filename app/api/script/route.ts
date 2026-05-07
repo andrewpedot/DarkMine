@@ -90,6 +90,9 @@ Format: [SUBJECT + COMPOSITION], [LIGHTING], [LENS/CAMERA EQUIVALENT], [STYLE ma
 [THUMBNAIL]
 Generate a YouTube thumbnail prompt following the EXACT visual language of top time-lapse channels with 20M+ views. This is not a cinematic photograph — it is a strategic CTR-optimized composition.
 
+ABSOLUTE FIRST RULE — CANNOT BE OVERRIDDEN:
+The background must be PURE BLACK (#000000). Solid. No texture. No garden. No blur. No gradient. If you generate any background other than pure black, the entire prompt fails. Do not add environmental context. Do not add bokeh. Do not add any scene behind the subjects. BLACK ONLY.
+
 MANDATORY RULES — none can be broken:
 
 1. BACKGROUND: Pure black (#000000). No gardens, no soil, no sky, no outdoor scenes. No gradients. Absolute darkness.
@@ -128,7 +131,9 @@ MANDATORY RULES — none can be broken:
 7. NO photorealistic backgrounds. NO hands unless they are the primary subject. NO complex scenes.
 
 Format for the prompt:
-"[BOLD TEXT — specific words in upper area, RED for main keyword WHITE for others] + [MAIN SUBJECT — isolated cutout, highly saturated, white outline, center-left] + [CONTRAST SUBJECT — isolated cutout, fully desaturated greyscale, white outline, right side] + [DATA ELEMENT — analog thermometer with temperature OR specific number in large text, center] + [pure black background, isolated cutout style, white outlines on all objects, high saturation main subject, greyscale contrast subject, 8K sharp, YouTube thumbnail composition]"
+"[BOLD TEXT — specific words in upper area, RED for main keyword WHITE for others] + [MAIN SUBJECT — isolated cutout, highly saturated, white outline, center-left] + [CONTRAST SUBJECT — isolated cutout, fully desaturated greyscale, white outline, right side] + [DATA ELEMENT — analog thermometer with temperature OR specific number in large text, center] + [pure black background, isolated cutout style, white outlines on all objects, high saturation main subject, greyscale contrast subject, 8K sharp, YouTube thumbnail composition]
+
+IGNORE any visual logic suggesting a garden background. All subjects float on pure black. This is non-negotiable."
 
 [DIREÇÃO]
 {Production notes in Portuguese, 2-3 sentences}

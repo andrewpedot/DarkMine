@@ -305,8 +305,17 @@ function DarkScriptGenerator() {
 
       const jsonMatch = accumulated.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : accumulated;
-      const result: TimeLapseScript = JSON.parse(jsonStr);
-      setScript(result);
+      const result = JSON.parse(jsonStr);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      if (!result.cenas || !Array.isArray(result.cenas)) {
+        throw new Error('Roteiro gerado em formato inválido.');
+      }
+
+      setScript(result as TimeLapseScript);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar roteiro.');
     } finally {
@@ -470,7 +479,7 @@ function DarkScriptGenerator() {
               <div>
                 <h2 className="text-sm font-semibold text-gray-200 leading-tight">{script.titulo}</h2>
                 <p className="text-[11px] text-gray-600 mt-0.5">
-                  {script.nicho} · {script.duracao_total} · {script.cenas.length} cenas
+                  {script.nicho} · {script.duracao_total} · {script.cenas?.length || 0} cenas
                 </p>
               </div>
               <div className="hidden sm:flex items-center gap-3 text-[10px] font-mono text-gray-600">

@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     async start(controller) {
       try {
         const response = await client.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-3-5-sonnet-20241022',
           max_tokens: 8000,
           stream: true,
           messages: [{ role: 'user', content: buildPrompt(title, niche, subniche, context, wordCount) }],

@@ -2,14 +2,34 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import type { TimeLapseScript, TimeLapseScene } from '../actions/generate-script';
+import { useRouter } from 'next/navigation';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type BlockType = 'narracao' | 'video' | 'imagem' | 'direcao';
+type BlockType = 'narracao' | 'video' | 'imagem' | 'direcao' | 'thumbnail';
 type CopiedState = { sceneId: number; block: BlockType } | null;
+type FilterType = 'all' | BlockType;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+interface SceneData {
+  id: number;
+  titulo_cena: string;
+  tempo_inicio: string;
+  tempo_fim: string;
+  narracao: string;
+  video?: string;
+  imagem?: string;
+  direcao: string;
+  thumbnail?: string;
+  prompt_video?: string;
+  prompt_imagem?: string;
+}
+
+interface ScriptData {
+  titulo: string;
+  nicho: string;
+  duracao_total: string;
+  idioma?: string;
+  total_words?: number;
+  cenas: SceneData[];
+}
 
 const WORD_OPTIONS = [
   { words: 1500, label: '1500 words', sublabel: '~10 min' },
@@ -34,6 +54,7 @@ const BLOCK_CONFIG: Record<BlockType, {
   bgClass: string;
   badgeClass: string;
   textClass: string;
+  filterLabel: string;
   icon: React.ReactNode;
 }> = {
   narracao: {
@@ -43,6 +64,7 @@ const BLOCK_CONFIG: Record<BlockType, {
     bgClass: 'bg-blue-500/[0.04]',
     badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
     textClass: 'text-blue-400',
+    filterLabel: 'Narração',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -51,11 +73,12 @@ const BLOCK_CONFIG: Record<BlockType, {
   },
   video: {
     label: 'Prompt de Vídeo',
-    sublabel: 'Runway ML / Kling AI',
+    sublabel: 'VEO3 / Kling AI',
     borderClass: 'border-l-[3px] border-emerald-500/70',
     bgClass: 'bg-emerald-500/[0.04]',
     badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
     textClass: 'text-emerald-400',
+    filterLabel: 'Vídeo',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -64,14 +87,29 @@ const BLOCK_CONFIG: Record<BlockType, {
   },
   imagem: {
     label: 'Prompt de Imagem',
-    sublabel: 'Midjourney / Flux',
+    sublabel: 'Nano Banana',
     borderClass: 'border-l-[3px] border-amber-500/70',
     bgClass: 'bg-amber-500/[0.04]',
     badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
     textClass: 'text-amber-400',
+    filterLabel: 'Imagem',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  thumbnail: {
+    label: 'Thumbnail',
+    sublabel: 'YouTube — Nano Banana',
+    borderClass: 'border-l-[3px] border-orange-500/70',
+    bgClass: 'bg-orange-500/[0.04]',
+    badgeClass: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
+    textClass: 'text-orange-400',
+    filterLabel: 'Thumbnail',
+    icon: (
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
       </svg>
     ),
   },
@@ -82,6 +120,7 @@ const BLOCK_CONFIG: Record<BlockType, {
     bgClass: 'bg-violet-500/[0.04]',
     badgeClass: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
     textClass: 'text-violet-400',
+    filterLabel: 'Direção',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -90,14 +129,14 @@ const BLOCK_CONFIG: Record<BlockType, {
   },
 };
 
+const BLOCK_ORDER: BlockType[] = ['narracao', 'video', 'imagem', 'thumbnail', 'direcao'];
+
 function getScenesCount(targetWords: number): number {
   if (targetWords <= 2000) return 4;
   if (targetWords <= 3000) return 6;
   if (targetWords <= 3750) return 8;
   return 9;
 }
-
-// ─── SceneBlock ───────────────────────────────────────────────────────────────
 
 function SceneBlock({
   type,
@@ -114,7 +153,9 @@ function SceneBlock({
 }) {
   const cfg = BLOCK_CONFIG[type];
   const isCopied = copied?.sceneId === sceneId && copied?.block === type;
-  const isMono = type === 'video' || type === 'imagem';
+  const isMono = type === 'video' || type === 'imagem' || type === 'thumbnail';
+
+  if (!text) return null;
 
   return (
     <div className={`rounded-xl ${cfg.borderClass} ${cfg.bgClass} px-4 py-4`}>
@@ -158,40 +199,43 @@ function SceneBlock({
   );
 }
 
-// ─── SceneCard ────────────────────────────────────────────────────────────────
-
 function SceneCard({
   scene,
   index,
   copied,
   onCopy,
+  visibleBlocks,
 }: {
-  scene: TimeLapseScene;
+  scene: SceneData;
   index: number;
   copied: CopiedState;
   onCopy: (text: string, sceneId: number, block: BlockType) => void;
+  visibleBlocks: FilterType;
 }) {
   const [expanded, setExpanded] = useState(true);
+
+  const getVideoText = () => scene.video || scene.prompt_video || '';
+  const getImagemText = () => scene.imagem || scene.prompt_imagem || '';
 
   return (
     <div className="bg-black/40 border border-white/5 rounded-2xl overflow-hidden hover:border-white/10 transition-colors">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full bg-white/[0.03] px-5 py-3.5 flex items-center justify-between border-b border-white/5 hover:bg-white/[0.06] transition-colors"
+        className="w-full bg-gradient-to-r from-white/[0.03] to-white/[0.01] px-5 py-4 flex items-center justify-between border-b border-white/5 hover:from-white/[0.05] hover:to-white/[0.02] transition-all"
       >
-        <div className="flex items-center gap-3">
-          <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black bg-white/5 border border-white/10 text-gray-400 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-black bg-gradient-to-br from-violet-600/30 to-violet-800/30 border border-violet-500/30 text-violet-300 flex-shrink-0 shadow-[0_0_15px_rgba(139,92,246,0.15)]">
             {index + 1}
           </span>
           <div className="text-left">
-            <h3 className="text-sm font-semibold text-white leading-tight">{scene.titulo_cena}</h3>
-            <span className="text-[10px] font-mono text-gray-500">
-              Cena {index + 1} · {scene.tempo_inicio}–{scene.tempo_fim}
+            <h3 className="text-base font-bold text-white leading-tight">{scene.titulo_cena}</h3>
+            <span className="text-xs font-mono text-gray-500">
+              {scene.tempo_inicio} — {scene.tempo_fim}
             </span>
           </div>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-600 transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-gray-500 transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -200,45 +244,29 @@ function SceneCard({
 
       {expanded && (
         <div className="p-5 flex flex-col gap-3">
-          <SceneBlock type="narracao" text={scene.narracao} sceneId={scene.id} copied={copied} onCopy={onCopy} />
-          <SceneBlock type="video" text={scene.prompt_video} sceneId={scene.id} copied={copied} onCopy={onCopy} />
-          <SceneBlock type="imagem" text={scene.prompt_imagem} sceneId={scene.id} copied={copied} onCopy={onCopy} />
-          <SceneBlock type="direcao" text={scene.direcao} sceneId={scene.id} copied={copied} onCopy={onCopy} />
+          {(visibleBlocks === 'all' ? BLOCK_ORDER : [visibleBlocks as BlockType]).map(blockType => {
+            let text = '';
+            if (blockType === 'narracao') text = scene.narracao;
+            if (blockType === 'video') text = getVideoText();
+            if (blockType === 'imagem') text = getImagemText();
+            if (blockType === 'direcao') text = scene.direcao;
+            if (blockType === 'thumbnail') text = scene.thumbnail || '';
+            return (
+              <SceneBlock
+                key={blockType}
+                type={blockType}
+                text={text}
+                sceneId={scene.id}
+                copied={copied}
+                onCopy={onCopy}
+              />
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function SkeletonCard() {
-  return (
-    <div className="bg-black/40 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
-      <div className="bg-white/[0.03] px-5 py-3.5 flex items-center gap-3 border-b border-white/5">
-        <div className="w-7 h-7 rounded-lg bg-white/8" />
-        <div className="flex-1">
-          <div className="h-3.5 w-52 bg-white/8 rounded mb-1.5" />
-          <div className="h-2.5 w-28 bg-white/5 rounded" />
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-3">
-        {(['border-blue-500/20', 'border-emerald-500/20', 'border-amber-500/20', 'border-violet-500/20'] as const).map((c, j) => (
-          <div key={j} className={`rounded-xl border-l-[3px] ${c} bg-white/[0.02] px-4 py-4`}>
-            <div className="h-2.5 w-24 bg-white/8 rounded mb-3" />
-            <div className="space-y-2">
-              <div className="h-2.5 w-full bg-white/5 rounded" />
-              <div className="h-2.5 w-4/5 bg-white/5 rounded" />
-              <div className="h-2.5 w-3/5 bg-white/5 rounded" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Label ────────────────────────────────────────────────────────────────────
 
 function FieldLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
   return (
@@ -251,25 +279,61 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
   );
 }
 
-// ─── Main Generator ───────────────────────────────────────────────────────────
-
 function DarkScriptGenerator() {
+  const router = useRouter();
   const [title, setTitle] = useState('');
   const [niche, setNiche] = useState('');
   const [subniche, setSubniche] = useState('');
   const [channelContext, setChannelContext] = useState('');
   const [targetWords, setTargetWords] = useState(3000);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [script, setScript] = useState<TimeLapseScript | null>(null);
+  const [script, setScript] = useState<ScriptData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<CopiedState>(null);
   const [streamingText, setStreamingText] = useState('');
   const [generationStage, setGenerationStage] = useState<'idle' | 'generating' | 'parsing' | 'done'>('idle');
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [isSaving, setIsSaving] = useState(false);
+  const [fullNarration, setFullNarration] = useState('');
 
   const handleCopy = (text: string, sceneId: number, block: BlockType) => {
     navigator.clipboard.writeText(text);
     setCopied({ sceneId, block });
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const copyAllNarration = () => {
+    if (fullNarration) {
+      navigator.clipboard.writeText(fullNarration);
+      setCopied({ sceneId: 0, block: 'narracao' });
+      setTimeout(() => setCopied(null), 2000);
+    }
+  };
+
+  const saveToLibrary = async () => {
+    if (!script) return;
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/library/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: script.titulo,
+          niche: script.nicho,
+          script_content: script,
+          status: 'finalizado',
+        }),
+      });
+      if (response.ok) {
+        router.push('/library');
+      } else {
+        throw new Error('Erro ao salvar');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar na biblioteca.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -279,6 +343,7 @@ function DarkScriptGenerator() {
     setError(null);
     setStreamingText('');
     setGenerationStage('generating');
+    setFilter('all');
 
     try {
       const response = await fetch('/api/script', {
@@ -323,25 +388,21 @@ function DarkScriptGenerator() {
             } else if (event.type === 'parsing') {
               setGenerationStage('parsing');
             } else if (event.type === 'done') {
-              const result = event.data;
+              const result: ScriptData = event.data;
               if (!result.cenas || !Array.isArray(result.cenas)) {
                 throw new Error('Roteiro gerado em formato inválido.');
               }
-              const transformed: TimeLapseScript = {
-                ...result,
-                cenas: result.cenas.map((scene: any) => ({
-                  ...scene,
-                  prompt_video: scene.video || scene.prompt_video || '',
-                  prompt_imagem: scene.imagem || scene.prompt_imagem || '',
-                })),
-              };
-              setScript(transformed);
+              const narrationText = result.cenas
+                .map((s, i) => `[CENA ${i + 1}]\n${s.narracao}`)
+                .join('\n\n');
+              setFullNarration(narrationText);
+              setScript(result);
               setGenerationStage('done');
             } else if (event.type === 'error') {
               throw new Error(event.message);
             }
           } catch (parseErr) {
-            console.error('Parse error:', parseErr, 'Raw line:', trimmed.substring(0, 100));
+            console.error('Parse error:', parseErr);
           }
         }
       }
@@ -353,14 +414,12 @@ function DarkScriptGenerator() {
     }
   };
 
-  const skeletonCount = getScenesCount(targetWords);
-  const selectedOption = WORD_OPTIONS.find(o => o.words === targetWords) ?? WORD_OPTIONS[6];
+  const totalWords = script?.cenas.reduce((acc, s) => acc + (s.narracao?.split(/\s+/).length || 0), 0) || 0;
 
   return (
     <div className="min-h-screen bg-[#080b12] relative overflow-x-hidden text-gray-200">
       <div className="fixed top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%)', filter: 'blur(40px)' }} />
 
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-white/5" style={{ background: 'rgba(8,11,18,0.85)', backdropFilter: 'blur(20px)' }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -382,11 +441,9 @@ function DarkScriptGenerator() {
 
       <main className="max-w-5xl mx-auto px-6 py-10">
 
-        {/* ── Config Panel ─────────────────────────────────────────────────── */}
         <div className="rounded-2xl p-6 mb-8 border border-white/10 bg-black/40 backdrop-blur-md">
           <div className="flex flex-col gap-6">
 
-            {/* Título */}
             <div>
               <FieldLabel>Título do Vídeo</FieldLabel>
               <input
@@ -398,7 +455,6 @@ function DarkScriptGenerator() {
               />
             </div>
 
-            {/* Nicho + Subnicho side by side on md+ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <FieldLabel>Nicho</FieldLabel>
@@ -422,7 +478,6 @@ function DarkScriptGenerator() {
               </div>
             </div>
 
-            {/* Contexto do Canal */}
             <div>
               <FieldLabel optional>Contexto do Canal</FieldLabel>
               <textarea
@@ -434,7 +489,6 @@ function DarkScriptGenerator() {
               />
             </div>
 
-            {/* Tamanho + Gerar */}
             <div className="flex flex-col sm:flex-row items-end gap-4">
               <div className="w-full sm:w-auto">
                 <FieldLabel>Tamanho do Roteiro</FieldLabel>
@@ -485,14 +539,12 @@ function DarkScriptGenerator() {
           </div>
         </div>
 
-        {/* ── Error ────────────────────────────────────────────────────────── */}
         {error && (
           <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-950/20 text-red-400 text-sm">
             {error}
           </div>
         )}
 
-        {/* ── Streaming Preview ───────────────────────────────────────────── */}
         {isGenerating && (
           <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
             <div className="bg-white/[0.03] px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
@@ -520,22 +572,76 @@ function DarkScriptGenerator() {
           </div>
         )}
 
-        {/* ── Script Output ────────────────────────────────────────────────── */}
         {script && !isGenerating && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Summary bar */}
-            <div className="flex items-center justify-between px-1 pb-3 border-b border-white/8">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-200 leading-tight">{script.titulo}</h2>
-                <p className="text-[11px] text-gray-600 mt-0.5">
-                  {script.nicho} · {script.duracao_total} · {script.cenas?.length || 0} cenas
-                </p>
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-violet-950/30 to-transparent p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">{script.titulo}</h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {script.nicho} · {script.duracao_total}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyAllNarration}
+                    disabled={!fullNarration}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/50 disabled:opacity-40"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Copiar Narração
+                  </button>
+                  <button
+                    onClick={saveToLibrary}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 disabled:opacity-40"
+                  >
+                    {isSaving ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                        Salvar na Biblioteca
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="hidden sm:flex items-center gap-3 text-[10px] font-mono text-gray-600">
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500/60" />Narração</span>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500/60" />Vídeo</span>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500/60" />Imagem</span>
-                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-violet-500/60" />Direção</span>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                    filter === 'all'
+                      ? 'bg-white/10 border-white/30 text-white'
+                      : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                  }`}
+                >
+                  Tudo
+                </button>
+                {BLOCK_ORDER.map(bt => (
+                  <button
+                    key={bt}
+                    onClick={() => setFilter(bt)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
+                      filter === bt
+                        ? `${BLOCK_CONFIG[bt].badgeClass.replace('/15 ', '/20 ').replace('text-', 'text-').replace('border-', 'border-')} border-current`
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                    }`}
+                  >
+                    {BLOCK_CONFIG[bt].filterLabel}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -546,16 +652,21 @@ function DarkScriptGenerator() {
                 index={index}
                 copied={copied}
                 onCopy={handleCopy}
+                visibleBlocks={filter}
               />
             ))}
+
+            <div className="text-center py-4 border-t border-white/5">
+              <p className="text-xs text-gray-600">
+                Roteiro gerado · ~{totalWords} palavras · {script.cenas.length} cenas · Idioma: {script.idioma || 'Português'}
+              </p>
+            </div>
           </div>
         )}
       </main>
     </div>
   );
 }
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ScriptPage() {
   return (

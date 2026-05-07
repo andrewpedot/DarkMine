@@ -374,11 +374,29 @@ function DarkScriptGenerator() {
 
   const handleSendToFlow = () => {
     if (!script) return;
-    const videoPrompts = script.cenas
-      .map(scene => scene.video || scene.prompt_video || '')
-      .filter(Boolean);
 
-    if (videoPrompts.length === 0) {
+    const allPrompts: string[] = [];
+    for (const cena of script.cenas) {
+      const videoText = cena.video || cena.prompt_video || '';
+      if (!videoText.trim()) continue;
+
+      const clipPattern = /\[CLIP \d+\/\d+\]/gi;
+      const clips = videoText.split(/(?=\[CLIP )/i).filter(c => c.trim());
+
+      for (const clip of clips) {
+        if (clip.match(clipPattern)) {
+          const clipText = clip.replace(/\[CLIP \d+\/\d+\]/i, '').trim();
+          if (clipText) {
+            allPrompts.push(clipText);
+          }
+        } else if (videoText && !videoText.includes('[CLIP')) {
+          allPrompts.push(videoText.trim());
+          break;
+        }
+      }
+    }
+
+    if (allPrompts.length === 0) {
       setFlowToast('Nenhum prompt de vídeo encontrado no roteiro.');
       setTimeout(() => setFlowToast(null), 3000);
       return;
@@ -386,8 +404,8 @@ function DarkScriptGenerator() {
 
     const handleConfirmation = (e: MessageEvent) => {
       if (e.data?.type === 'DARKMINE_FLOW_CONFIRMED') {
-        setFlowToast(`✓ ${videoPrompts.length} clips na fila da extensão`);
-        setTimeout(() => setFlowToast(null), 4000);
+        setFlowToast(`✓ ${allPrompts.length} clips prontos na extensão — abra o ícone ⚡`);
+        setTimeout(() => setFlowToast(null), 5000);
       }
       window.removeEventListener('message', handleConfirmation);
     };
@@ -395,7 +413,7 @@ function DarkScriptGenerator() {
 
     window.postMessage({
       type: 'DARKMINE_FLOW_QUEUE',
-      prompts: videoPrompts,
+      prompts: allPrompts,
       videoTitle: title,
       delay: 90,
     }, '*');

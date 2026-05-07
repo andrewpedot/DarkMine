@@ -295,6 +295,7 @@ function DarkScriptGenerator() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [fullNarration, setFullNarration] = useState('');
+  const [flowToast, setFlowToast] = useState<string | null>(null);
 
   const handleCopy = (text: string, sceneId: number, block: BlockType) => {
     navigator.clipboard.writeText(text);
@@ -333,6 +334,33 @@ function DarkScriptGenerator() {
       setError(err instanceof Error ? err.message : 'Erro ao salvar na biblioteca.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSendToFlow = () => {
+    if (!script) return;
+    const videoPrompts = script.cenas
+      .map(scene => scene.video || scene.prompt_video || '')
+      .filter(Boolean);
+
+    if (videoPrompts.length === 0) {
+      setFlowToast('Nenhum prompt de vídeo encontrado no roteiro.');
+      setTimeout(() => setFlowToast(null), 3000);
+      return;
+    }
+
+    const hasChrome = typeof (globalThis as any).chrome !== 'undefined' && (globalThis as any).chrome?.storage;
+    if (hasChrome) {
+      (globalThis as any).chrome.storage.local.set({
+        flowQueue: videoPrompts,
+        flowDelay: 90,
+        queueRunning: false,
+      });
+      setFlowToast(`✓ ${videoPrompts.length} prompts enviados para a extensão`);
+      setTimeout(() => setFlowToast(null), 3000);
+    } else {
+      setFlowToast('Instale a extensão DarkMine Flow Sender para usar esta função');
+      setTimeout(() => setFlowToast(null), 4000);
     }
   };
 
@@ -615,6 +643,15 @@ function DarkScriptGenerator() {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={handleSendToFlow}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Enviar para Flow
+                  </button>
                 </div>
               </div>
 
@@ -661,6 +698,12 @@ function DarkScriptGenerator() {
                 Roteiro gerado · ~{totalWords} palavras · {script.cenas.length} cenas · Idioma: {script.idioma || 'Português'}
               </p>
             </div>
+          </div>
+        )}
+
+        {flowToast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl bg-black/90 border border-white/20 text-sm font-medium text-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {flowToast}
           </div>
         )}
       </main>

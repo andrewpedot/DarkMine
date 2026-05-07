@@ -303,7 +303,16 @@ function DarkScriptGenerator() {
         throw new Error('Roteiro gerado em formato inválido.');
       }
 
-      setScript(result as TimeLapseScript);
+      const transformed: TimeLapseScript = {
+        ...result,
+        cenas: result.cenas.map((scene: any) => ({
+          ...scene,
+          prompt_video: scene.video || scene.prompt_video || '',
+          prompt_imagem: scene.imagem || scene.prompt_imagem || '',
+        })),
+      };
+
+      setScript(transformed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar roteiro.');
     } finally {

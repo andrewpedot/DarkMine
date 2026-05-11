@@ -2,10 +2,17 @@
 import { createProject, updateProject } from './db';
 
 
-export async function generateHooks(originalTitle: string, market: string, projectId?: string) {
+export async function generateHooks(
+    originalTitle: string,
+    market: string,
+    projectId?: string,
+    niche?: string,
+    subNiche?: string,
+    refTitles?: string[],
+) {
     try {
         const apiKey = process.env.ANTHROPIC_API_KEY;
-        
+
         if (!apiKey) {
             console.error('ANTHROPIC_API_KEY is missing');
             return { success: false, error: 'Erro: Chave da Anthropic não encontrada.' };
@@ -25,7 +32,15 @@ export async function generateHooks(originalTitle: string, market: string, proje
           ]
         }`;
 
-        const userMessage = `Título Original: "${originalTitle}"\nMercado Alvo: ${market}\n\nGere o clone cultural em formato JSON respeitando rigorosamente as regras. NÃO TRADUZA AS CHAVES DO JSON.`;
+        const nicheContext = niche
+            ? `\nNicho: ${niche}${subNiche ? ` › ${subNiche}` : ''}`
+            : '';
+
+        const refTitlesBlock = refTitles && refTitles.length > 0
+            ? `\n\nTítulos de referência deste canal (estude o padrão):\n${refTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+            : '';
+
+        const userMessage = `Título Original: "${originalTitle}"\nMercado Alvo: ${market}${nicheContext}${refTitlesBlock}\n\nGere o clone cultural em formato JSON respeitando rigorosamente as regras. NÃO TRADUZA AS CHAVES DO JSON.`;
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',

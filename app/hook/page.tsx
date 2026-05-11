@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { generateHooks } from '../actions/generate-hooks';
 import { generateThumbPrompt } from '../actions/generate-thumb';
 import { saveTitleToProject } from '../actions/save-title';
+import type { Channel } from '../../types/database';
 
 // Lista de idiomas de Alto RPM
 const MARKETS = [
@@ -38,6 +39,9 @@ export default function DarkHookPage() {
     const [copiedPromptId, setCopiedPromptId] = useState<number | null>(null);
     const [currentProjectId, setCurrentProjectId] = useState<string>('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [channels, setChannels] = useState<Channel[]>([]);
+    const [selectedChannelId, setSelectedChannelId] = useState('');
+    const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -49,6 +53,20 @@ export default function DarkHookPage() {
         if (id) setCurrentProjectId(id);
     }, []);
 
+    useEffect(() => {
+        fetch('/api/channels')
+            .then(r => r.json())
+            .then(j => setChannels((j.channels || []).filter((c: Channel) => c.status === 'ativo')))
+            .catch(() => {});
+    }, []);
+
+    const handleChannelSelect = (channelId: string) => {
+        setSelectedChannelId(channelId);
+        if (!channelId) { setSelectedChannel(null); return; }
+        const ch = channels.find(c => c.id === channelId) ?? null;
+        setSelectedChannel(ch);
+    };
+
     const handleGenerate = async () => {
         if (!titleInput.trim()) return;
         setIsGenerating(true);
@@ -56,7 +74,14 @@ export default function DarkHookPage() {
         setErrorMsg('');
 
         try {
-            const data = await generateHooks(titleInput, market, currentProjectId || undefined);
+            const data = await generateHooks(
+                titleInput,
+                market,
+                currentProjectId || undefined,
+                selectedChannel?.niche,
+                selectedChannel?.sub_niche,
+                selectedChannel?.ref_titles,
+            );
             
             if (!data.success) {
                 setErrorMsg(data.error || "Erro ao gerar variações.");
@@ -175,6 +200,38 @@ export default function DarkHookPage() {
                             <div className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(180deg, #10b981, #059669)' }} />
                             <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-widest">Configuração do Hook</h2>
                         </div>
+
+                        {/* Canal Select */}
+                        {channels.length > 0 && (
+                            <div>
+                                <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">Canal (opcional)</label>
+                                <div className="relative">
+                                    <select
+                                        value={selectedChannelId}
+                                        onChange={e => handleChannelSelect(e.target.value)}
+                                        className="input-dark w-full pl-4 pr-10 py-2.5 rounded-xl text-sm appearance-none"
+                                    >
+                                        <option value="" className="bg-[#0d1017]">Selecionar canal</option>
+                                        {channels.map(ch => (
+                                            <option key={ch.id} value={ch.id} className="bg-[#0d1017]">{ch.name} — {ch.niche}</option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                {selectedChannel && (
+                                    <div className="mt-2 text-[11px] text-gray-500 font-mono flex gap-3">
+                                        <span>{selectedChannel.niche}{selectedChannel.sub_niche ? ` › ${selectedChannel.sub_niche}` : ''}</span>
+                                        {(selectedChannel.ref_titles?.length ?? 0) > 0 && (
+                                            <span className="text-emerald-500/70">{selectedChannel.ref_titles!.length} títulos ref.</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Original Title Textarea */}
                         <div>

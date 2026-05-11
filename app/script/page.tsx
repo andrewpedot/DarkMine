@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { Channel } from '../../types/database';
 
 type BlockType = 'narracao' | 'video' | 'imagem' | 'direcao' | 'thumbnail';
 type CopiedState = { sceneId: number; block: BlockType } | null;
@@ -321,6 +322,9 @@ function DarkScriptGenerator() {
   const [subniche, setSubniche] = useState('');
   const [channelContext, setChannelContext] = useState('');
   const [targetWords, setTargetWords] = useState(3000);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState('');
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [script, setScript] = useState<ScriptData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -335,6 +339,25 @@ function DarkScriptGenerator() {
   const [savedScripts, setSavedScripts] = useState<any[]>([]);
   const [isLoadingScripts, setIsLoadingScripts] = useState(false);
   const [rawScript, setRawScript] = useState<string>('');
+
+  useEffect(() => {
+    fetch('/api/channels')
+      .then(r => r.json())
+      .then(j => setChannels((j.channels || []).filter((c: Channel) => c.status === 'ativo')))
+      .catch(() => {});
+  }, []);
+
+  const handleChannelSelect = (channelId: string) => {
+    setSelectedChannelId(channelId);
+    if (!channelId) { setSelectedChannel(null); return; }
+    const ch = channels.find(c => c.id === channelId) ?? null;
+    setSelectedChannel(ch);
+    if (ch) {
+      setNiche(ch.niche);
+      setSubniche(ch.sub_niche ?? '');
+      setChannelContext(ch.persona ?? '');
+    }
+  };
 
   const handleCopy = (text: string, sceneId: number, block: BlockType) => {
     navigator.clipboard.writeText(text);
@@ -519,6 +542,8 @@ function DarkScriptGenerator() {
           subniche: subniche.trim() || undefined,
           context: channelContext.trim() || undefined,
           wordCount: targetWords,
+          ref_transcripts: selectedChannel?.ref_transcripts?.length ? selectedChannel.ref_transcripts : undefined,
+          ref_titles: selectedChannel?.ref_titles?.length ? selectedChannel.ref_titles : undefined,
         }),
       });
 
@@ -613,6 +638,51 @@ function DarkScriptGenerator() {
 
         <div className="rounded-2xl p-6 mb-8 border border-white/10 bg-black/40 backdrop-blur-md">
           <div className="flex flex-col gap-6">
+
+            {/* Canal */}
+            {channels.length > 0 && (
+              <div>
+                <FieldLabel optional>Canal</FieldLabel>
+                <div className="relative">
+                  <select
+                    value={selectedChannelId}
+                    onChange={e => handleChannelSelect(e.target.value)}
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 transition-colors appearance-none cursor-pointer"
+                  >
+                    <option value="" className="bg-[#0d1017]">Selecionar canal (opcional)</option>
+                    {channels.map(ch => (
+                      <option key={ch.id} value={ch.id} className="bg-[#0d1017]">{ch.name} — {ch.niche}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                {selectedChannel && (
+                  <div className="mt-3 rounded-xl bg-violet-900/10 border border-violet-500/20 px-4 py-3 text-xs text-gray-400 space-y-1">
+                    {selectedChannel.persona && (
+                      <p className="line-clamp-2 text-gray-300">{selectedChannel.persona}</p>
+                    )}
+                    <div className="flex items-center gap-3 text-gray-600 font-mono mt-1">
+                      {(selectedChannel.ref_transcripts?.length ?? 0) > 0 && (
+                        <span>{selectedChannel.ref_transcripts!.length} transcrições ref.</span>
+                      )}
+                      {(selectedChannel.characters?.length ?? 0) > 0 && (
+                        <span className="flex items-center gap-1">
+                          {selectedChannel.characters!.slice(0, 3).map(c =>
+                            c.image_url
+                              ? <img key={c.id} src={c.image_url} alt={c.name} className="w-5 h-5 rounded-full object-cover border border-white/10" />
+                              : <div key={c.id} className="w-5 h-5 rounded-full bg-violet-900/50 border border-violet-500/20 flex items-center justify-center text-[9px] text-violet-300">{c.name[0]}</div>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <FieldLabel>Título do Vídeo</FieldLabel>

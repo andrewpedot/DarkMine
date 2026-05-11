@@ -21,7 +21,27 @@ Your output is not generic content. Every script you write is deeply calibrated 
 
 You write with the precision of a scientist, the rhythm of a poet, and the strategy of a growth hacker. Every word serves retention. Every sentence earns the next.`;
 
-function buildPrompt(title: string, niche: string, subniche: string, context: string, wordCount: number, totalMinutes: number) {
+function buildRefTranscriptsBlock(refTranscripts?: { title: string; transcript: string }[]): string {
+  if (!refTranscripts || refTranscripts.length === 0) return '';
+  return `
+
+---REFERENCE TRANSCRIPTS (CRITICAL — STUDY BEFORE WRITING)---
+
+Abaixo estão transcrições reais de vídeos desse canal. Antes de escrever uma palavra, analise profundamente:
+1. O vocabulário usado — quais palavras repetem? Quais evita?
+2. O ritmo das frases — longas e contemplativas ou curtas e diretas?
+3. Como abre cada cena — pergunta retórica? Afirmação forte? Descrição visual?
+4. Como cria tensão e curiosidade — loops, cliffhangers, revelações?
+5. A relação com o público — íntima? distante? didática? emocional?
+
+Escreva o novo roteiro como se fosse escrito pela mesma pessoa que escreveu essas transcrições. O público deve reconhecer a voz imediatamente.
+
+${refTranscripts.map((t, i) => `TRANSCRIÇÃO ${i + 1}: "${t.title}"\n${t.transcript}`).join('\n---\n')}
+
+---FIM DAS REFERÊNCIAS---`;
+}
+
+function buildPrompt(title: string, niche: string, subniche: string, context: string, wordCount: number, totalMinutes: number, refTranscripts?: { title: string; transcript: string }[]) {
   const scenesCount = getScenesCount(wordCount);
   const lang = detectLanguage(title);
   const narrLang = lang === 'pt' ? 'Português' : 'Inglês';
@@ -45,12 +65,14 @@ DO NOT write generic documentary narration. Write narration that ONLY this speci
 
 **No persona provided.** Default to: calm educational documentary style, intermediate audience, natural curiosity tone.`;
 
+  const refTranscriptsBlock = buildRefTranscriptsBlock(refTranscripts);
+
   return `## CHANNEL IDENTITY BRIEF
 
 **Niche:** ${niche}
 **Sub-niche:** ${subniche || 'Not specified — infer from title and niche'}
 **Video Title:** ${title}
-**Target Duration:** ${wordCount} words across ${scenesCount} scenes${personaBlock}
+**Target Duration:** ${wordCount} words across ${scenesCount} scenes${personaBlock}${refTranscriptsBlock}
 
 ---
 
@@ -234,7 +256,7 @@ function parseScript(text: string, wordCount: number, totalMinutes: number): any
 }
 
 export async function POST(request: Request) {
-  const { title, niche, subniche, context, wordCount } = await request.json();
+  const { title, niche, subniche, context, wordCount, ref_transcripts } = await request.json();
 
   const totalMinutes = Math.round(wordCount / 150);
   const lang = detectLanguage(title);
@@ -258,7 +280,7 @@ export async function POST(request: Request) {
           system: SYSTEM_PROMPT,
           messages: [{
             role: 'user',
-            content: buildPrompt(title, niche, subniche, context, wordCount, totalMinutes)
+            content: buildPrompt(title, niche, subniche, context, wordCount, totalMinutes, ref_transcripts)
           }]
         });
 

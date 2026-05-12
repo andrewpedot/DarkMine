@@ -42,6 +42,7 @@ export default function DarkHookPage() {
     const [channels, setChannels] = useState<Channel[]>([]);
     const [selectedChannelId, setSelectedChannelId] = useState('');
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+    const [refTitlesExpanded, setRefTitlesExpanded] = useState(false);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -62,8 +63,12 @@ export default function DarkHookPage() {
 
     const handleChannelSelect = (channelId: string) => {
         setSelectedChannelId(channelId);
+        setRefTitlesExpanded(false);
         if (!channelId) { setSelectedChannel(null); return; }
         const ch = channels.find(c => c.id === channelId) ?? null;
+        console.log('Canal selecionado:', ch);
+        console.log('ref_titles:', ch?.ref_titles);
+        console.log('ref_titles type:', typeof ch?.ref_titles, Array.isArray(ch?.ref_titles));
         setSelectedChannel(ch);
     };
 
@@ -230,6 +235,42 @@ export default function DarkHookPage() {
                                         )}
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Reference Titles from Channel */}
+                        {selectedChannel && (selectedChannel.ref_titles?.length ?? 0) > 0 && (
+                            <div>
+                                <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">
+                                    Títulos de Referência do Canal
+                                </label>
+                                <div className="rounded-xl border border-white/10 overflow-hidden">
+                                    {(refTitlesExpanded
+                                        ? selectedChannel.ref_titles!
+                                        : selectedChannel.ref_titles!.slice(0, 3)
+                                    ).map((title, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setTitleInput(title)}
+                                            className="w-full text-left px-3 py-2.5 text-[12px] text-gray-300 hover:bg-emerald-950/40 hover:text-emerald-300 transition-colors border-b border-white/[0.06] last:border-b-0 font-mono leading-snug"
+                                        >
+                                            {title}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex items-center justify-between mt-1.5">
+                                    <p className="text-[10px] text-gray-600">Clique em um título para usar como base</p>
+                                    {(selectedChannel.ref_titles?.length ?? 0) > 3 && (
+                                        <button
+                                            onClick={() => setRefTitlesExpanded(prev => !prev)}
+                                            className="text-[10px] text-emerald-500/70 hover:text-emerald-400 font-mono uppercase tracking-wider transition-colors"
+                                        >
+                                            {refTitlesExpanded
+                                                ? '▲ Ver menos'
+                                                : `▼ Ver todos (${selectedChannel.ref_titles!.length})`}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         )}
 

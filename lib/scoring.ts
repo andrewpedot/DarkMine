@@ -58,6 +58,26 @@ export function computeFacelessScore(channel: YouTubeChannel, videos: YouTubeVid
   return Math.min(score, 100);
 }
 
+export function computeListaScore(title: string): number {
+  let score = 0;
+  const hasNumber = /\b\d+\b/.test(title);
+  if (hasNumber) score += 40;
+  const listPatterns = [
+    /\btop\s*\d+/i,
+    /\bbest\s+\d+/i,
+    /\d+\s+(things|ways|reasons|places|facts|tips|mistakes|secrets|foods|cars|cities|countries|items|products|signs|movies|shows|games|animals|people|moments)/i,
+    /\b(ranking|ranked|list of|compilation|every|all the)\b/i,
+    /^#\d+/,
+  ];
+  for (const pattern of listPatterns) {
+    if (pattern.test(title)) {
+      score += 60;
+      break;
+    }
+  }
+  return Math.min(score, 100);
+}
+
 const GOLD_COMMENT_PATTERNS = [
   { pattern: /I need more/i, weight: 3 },
   { pattern: /please make/i, weight: 3 },
@@ -254,28 +274,38 @@ interface ScoringSignals {
   timingBonus: number;
   monetizationSignals: number;
   outlierMultiplier: number;
+  listaScore: number;
+  viewsPerDay: number;
 }
 
 export function computeFinalScore(
   signals: ScoringSignals,
   searchType: 'money' | 'entertainment' | 'mixed' = 'mixed'
 ): { score: number; breakdown: ScoreBreakdown } {
-  const weights = searchType === 'money'
-    ? { faceless: 0.25, commentGold: 0.20, timing: 0.15, monetization: 0.15, outlier: 0.25 }
-    : searchType === 'entertainment'
-    ? { faceless: 0.30, commentGold: 0.15, timing: 0.15, monetization: 0.10, outlier: 0.30 }
-    : { faceless: 0.25, commentGold: 0.20, timing: 0.15, monetization: 0.15, outlier: 0.25 };
+  const weights = {
+    outlier: 0.25,
+    viewsPerDay: 0.20,
+    timing: 0.15,
+    lista: 0.15,
+    faceless: 0.10,
+    commentGold: 0.10,
+    monetization: 0.05,
+  };
 
   const outlierScore = Math.min(signals.outlierMultiplier * 20, 100);
+  const viewsPerDayScore = Math.min((signals.viewsPerDay / 2000) * 100, 100);
 
-  const facelessScaled = signals.facelessScore * weights.faceless;
-  const commentScaled = signals.commentGoldScore * weights.commentGold;
-  const timingScaled = signals.timingBonus * (100 / 25) * weights.timing;
+  const outlierScaled      = outlierScore                              * weights.outlier;
+  const viewsPerDayScaled  = viewsPerDayScore                         * weights.viewsPerDay;
+  const timingScaled       = signals.timingBonus * (100 / 25)         * weights.timing;
+  const listaScaled        = signals.listaScore                       * weights.lista;
+  const facelessScaled     = signals.facelessScore                    * weights.faceless;
+  const commentScaled      = signals.commentGoldScore                 * weights.commentGold;
   const monetizationScaled = signals.monetizationSignals * (100 / 30) * weights.monetization;
-  const outlierScaled = outlierScore * weights.outlier;
 
   const finalScore = Math.round(
-    facelessScaled + commentScaled + timingScaled + monetizationScaled + outlierScaled
+    outlierScaled + viewsPerDayScaled + timingScaled + listaScaled +
+    facelessScaled + commentScaled + monetizationScaled
   );
 
   const breakdown: ScoreBreakdown = {
@@ -283,7 +313,7 @@ export function computeFinalScore(
     commentGoldScore: signals.commentGoldScore,
     timingBonus: signals.timingBonus,
     monetizationSignals: signals.monetizationSignals,
-    nicheScore: 0,
+    nicheScore: signals.listaScore,
     finalScore,
   };
 

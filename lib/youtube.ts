@@ -109,7 +109,7 @@ export async function searchVideos(
     throw new Error('YouTube API quota exhausted');
   }
 
-  const publishedStr = publishedAfter?.toISOString() || new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
+  const publishedStr = publishedAfter?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   
   const url = new URL('https://www.googleapis.com/youtube/v3/search');
   url.searchParams.set('part', 'snippet');

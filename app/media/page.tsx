@@ -750,7 +750,7 @@ export default function MediaPage() {
       {missingKeys.length > 0 && (
         <div className="pl-20 pr-4 pt-3">
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2 text-xs text-amber-400">
-            Chaves não configuradas no .env.local: <span className="font-mono">{missingKeys.join(', ')}</span>. Configure-as para ver resultados dessas fontes.
+            Chaves de API não encontradas no servidor: <span className="font-mono">{missingKeys.join(', ')}</span>. Configure-as no dashboard do Netlify e faça um novo deploy.
           </div>
         </div>
       )}

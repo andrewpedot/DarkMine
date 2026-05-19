@@ -444,6 +444,13 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[media/search] query="${query}" type=${type} sources=${sources.join(',')} page=${page}`);
+    console.log('[media/search] env keys present:', {
+      PEXELS_API_KEY: !!process.env.PEXELS_API_KEY,
+      PIXABAY_API_KEY: !!process.env.PIXABAY_API_KEY,
+      UNSPLASH_ACCESS_KEY: !!process.env.UNSPLASH_ACCESS_KEY,
+      YOUTUBE_API_KEY_MEDIA: !!process.env.YOUTUBE_API_KEY_MEDIA,
+      NEXT_PUBLIC_YOUTUBE_API_KEY: !!process.env.NEXT_PUBLIC_YOUTUBE_API_KEY,
+    });
 
     type TaskEntry = { label: string; promise: Promise<{ items: MediaItem[]; error?: string }> };
     const tasks: TaskEntry[] = [];

@@ -294,8 +294,9 @@ async function searchUnsplash(
 async function searchYouTubeCC(
   query: string
 ): Promise<{ items: MediaItem[]; error?: string }> {
-  const key = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY?.trim();
-  if (!key) return { items: [], error: 'NEXT_PUBLIC_YOUTUBE_API_KEY não configurada' };
+  // Chave dedicada ao DarkMídia — separada da chave principal do DarkMine
+  const key = (process.env.YOUTUBE_API_KEY_MEDIA || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY)?.trim();
+  if (!key) return { items: [], error: 'YOUTUBE_API_KEY_MEDIA não configurada' };
 
   const ytHeaders = {
     'Referer': 'https://www.darkmine.fun/',

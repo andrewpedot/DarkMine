@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { searchVideos, getVideoDetails, getChannelDetails, getCommentThreads, saveVideoToDb, saveChannelToDb, YouTubeVideo, YouTubeChannel } from '@/lib/youtube';
-import { computeFacelessScore, computeCommentGoldScore, classifyNiche, computeTimingBonus, computeMonetizationSignals, computeFinalScore, calculateOutlierMultiplier, calculateViewsPerDay, determineSearchType } from '@/lib/scoring';
+import { computeFacelessScore, computeCommentGoldScore, classifyNiche, computeTimingBonus, computeMonetizationSignals, computeFinalScore, computeListaScore, calculateOutlierMultiplier, calculateViewsPerDay, determineSearchType } from '@/lib/scoring';
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,13 +91,20 @@ export async function POST(request: NextRequest) {
 
         if (channel.subscriberCount > maxSubscribers) continue;
 
+        // Canais jovens: máx 30 vídeos publicados
+        if (channel.totalVideos > 30) continue;
+
+        // Vídeo deve ter no mínimo 10 minutos (600s); sem limite superior
+        if (video.durationSec > 0 && video.durationSec < 600) continue;
+
         const outlierMultiplier = calculateOutlierMultiplier(video.views, channel.subscriberCount);
         if (outlierMultiplier < 1) continue;
 
         const viewsPerDay = calculateViewsPerDay(video.views, video.publishedAt);
-        if (viewsPerDay < 200) continue;
+        if (viewsPerDay < 500) continue;
 
         const facelessScore = computeFacelessScore(channel, videoDetails);
+        const listaScore = computeListaScore(video.title);
         const { nicheId, subnicheId, confidence } = classifyNiche(
           video.title,
           video.description,
@@ -119,6 +126,8 @@ export async function POST(request: NextRequest) {
             timingBonus,
             monetizationSignals,
             outlierMultiplier,
+            listaScore,
+            viewsPerDay,
           },
           type
         );

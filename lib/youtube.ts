@@ -109,7 +109,7 @@ export async function searchVideos(
     throw new Error('YouTube API quota exhausted');
   }
 
-  const publishedStr = publishedAfter?.toISOString() || new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
+  const publishedStr = publishedAfter?.toISOString() || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   
   const url = new URL('https://www.googleapis.com/youtube/v3/search');
   url.searchParams.set('part', 'snippet');
@@ -303,7 +303,7 @@ export async function saveVideoToDb(video: YouTubeVideo, channelId: string): Pro
 export async function saveChannelToDb(channel: YouTubeChannel): Promise<void> {
   if (!supabase) return;
 
-  await supabase.from('channels').upsert({
+  await supabase.from('yt_channels').upsert({
     id: channel.id,
     name: channel.name,
     created_at_youtube: channel.createdAtYouTube,

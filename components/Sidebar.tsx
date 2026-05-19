@@ -51,6 +51,22 @@ export function Sidebar() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
             )
+        },
+        {
+            name: 'DarkMídia',
+            path: '/media',
+            icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="7" y1="2" x2="7" y2="22" strokeLinecap="round" />
+                    <line x1="17" y1="2" x2="17" y2="22" strokeLinecap="round" />
+                    <line x1="2" y1="12" x2="22" y2="12" strokeLinecap="round" />
+                    <line x1="2" y1="7" x2="7" y2="7" strokeLinecap="round" />
+                    <line x1="2" y1="17" x2="7" y2="17" strokeLinecap="round" />
+                    <line x1="17" y1="17" x2="22" y2="17" strokeLinecap="round" />
+                    <line x1="17" y1="7" x2="22" y2="7" strokeLinecap="round" />
+                </svg>
+            )
         }
     ];
 

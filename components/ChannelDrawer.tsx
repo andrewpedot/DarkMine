@@ -21,9 +21,26 @@ interface Props {
 }
 
 const LANGUAGE_OPTIONS = [
-  { value: 'pt', label: 'Português' },
   { value: 'en', label: 'Inglês' },
+  { value: 'no', label: 'Norueguês' },
+  { value: 'de', label: 'Alemão' },
+  { value: 'fi', label: 'Finlandês' },
+  { value: 'sv', label: 'Sueco' },
+  { value: 'da', label: 'Dinamarquês' },
+  { value: 'nl', label: 'Neerlandês' },
   { value: 'es', label: 'Espanhol' },
+  { value: 'ja', label: 'Japonês' },
+  { value: 'pt', label: 'Português' },
+  { value: 'pl', label: 'Polonês' },
+  { value: 'he', label: 'Hebraico' },
+  { value: 'fr', label: 'Francês' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'ko', label: 'Coreano' },
+  { value: 'ar', label: 'Árabe' },
+  { value: 'ru', label: 'Russo' },
+  { value: 'cs', label: 'Tcheco' },
+  { value: 'hu', label: 'Húngaro' },
+  { value: 'ro', label: 'Romeno' },
 ];
 
 const STATUS_OPTIONS: { value: ChannelStatus; label: string }[] = [

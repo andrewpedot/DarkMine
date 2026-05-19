@@ -727,9 +727,9 @@ export default function MediaPage() {
               onChange={(e) => setOrientation(e.target.value as any)}
               className="input-dark px-3 py-1.5 rounded-xl text-xs"
             >
-              <option value="landscape">Landscape</option>
-              <option value="portrait">Portrait</option>
-              <option value="square">Square</option>
+              <option value="landscape">Paisagem</option>
+              <option value="portrait">Retrato</option>
+              <option value="square">Quadrado</option>
             </select>
 
             {/* Quality */}

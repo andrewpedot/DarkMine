@@ -107,13 +107,15 @@ function MediaCard({
     >
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden bg-black/40">
-        <img
-          src={item.thumbnailUrl}
-          alt={item.title}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
+        {item.thumbnailUrl && (
+          <img
+            src={item.thumbnailUrl}
+            alt={item.title}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
 
         {/* Source badge */}
         <span className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${meta.badge}`}>
@@ -495,13 +497,15 @@ function SelectionPanel({
         {selected.map((item) => (
           <div key={item.id} className="flex items-center gap-2 group">
             <div className="relative flex-shrink-0 w-12 h-8 rounded overflow-hidden bg-black/40">
-              <img
-                src={item.thumbnailUrl}
-                alt={item.title}
-                className="w-full h-full object-cover"
-                loading="lazy"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
+              {item.thumbnailUrl && (
+                <img
+                  src={item.thumbnailUrl}
+                  alt={item.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              )}
               <div className={`absolute bottom-0 left-0 w-1.5 h-1.5 rounded-full ${SOURCE_META[item.source].dot} m-0.5`} />
             </div>
             <div className="flex-1 min-w-0">

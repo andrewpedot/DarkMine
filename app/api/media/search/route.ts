@@ -297,14 +297,21 @@ async function searchYouTubeCC(
   const key = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY?.trim();
   if (!key) return { items: [], error: 'NEXT_PUBLIC_YOUTUBE_API_KEY não configurada' };
 
+  const ytHeaders = {
+    'Referer': 'https://www.darkmine.fun/',
+    'Origin': 'https://www.darkmine.fun',
+  };
+
   try {
     const searchRes = await safeFetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoLicense=creativeCommon&maxResults=20&key=${key}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoLicense=creativeCommon&maxResults=20&key=${key}`,
+      { headers: ytHeaders }
     );
     if (!searchRes.ok) {
-      const err = `YouTube search HTTP ${searchRes.status}`;
+      const body = await searchRes.text().catch(() => '');
+      const err = `YouTube search HTTP ${searchRes.status}: ${body.slice(0, 200)}`;
       console.error('[media/search] ' + err);
-      return { items: [], error: err };
+      return { items: [], error: `YouTube search HTTP ${searchRes.status}` };
     }
     const searchData = await searchRes.json();
     const ytItems = searchData.items || [];
@@ -316,7 +323,8 @@ async function searchYouTubeCC(
       .join(',');
 
     const detailRes = await safeFetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${ids}&key=${key}`
+      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${ids}&key=${key}`,
+      { headers: ytHeaders }
     );
     const detailData = detailRes.ok ? await detailRes.json() : { items: [] };
     const detailMap: Record<string, any> = {};

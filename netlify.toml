@@ -2,11 +2,8 @@
   command = "npm run build"
   # O Netlify Next.js Runtime configura automaticamente o diretório de publicação (.next)
 
-# Permite que variáveis do ambiente sejam configuradas adequadamente e 
-# melhora a alocação de memória no servidor serverless do Netlify
 [build.environment]
   NODE_VERSION = "20"
-  NEXT_PRIVATE_STANDALONE = "true"
 
 [[headers]]
   for = "/*"

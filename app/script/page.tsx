@@ -34,6 +34,12 @@ const WORD_OPTIONS = [
   { words: 3500, label: '3500 palavras', sublabel: '~23.3 min' },
   { words: 4000, label: '4000 palavras', sublabel: '~26.7 min' },
   { words: 4500, label: '4500 palavras', sublabel: '~30 min' },
+  { words: 6000, label: '6000 palavras', sublabel: '~40 min' },
+  { words: 7500, label: '7500 palavras', sublabel: '~50 min' },
+  { words: 9000, label: '9000 palavras', sublabel: '~1h' },
+  { words: 10500, label: '10500 palavras', sublabel: '~1h 10m' },
+  { words: 12000, label: '12000 palavras', sublabel: '~1h 20m' },
+  { words: 13500, label: '13500 palavras', sublabel: '~1h 30m (1 hora e meia)' },
 ] as const;
 
 const BLOCK_CONFIG = {
@@ -508,22 +514,13 @@ function DarkScriptGenerator() {
               </div>
               <div>
                 <FieldLabel>Idioma da Narração</FieldLabel>
-                <div className="relative">
-                  <select
-                    value={idiomaNarracao}
-                    onChange={e => setIdiomaNarracao(e.target.value)}
-                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="Português" className="bg-[#0d1017]">Português</option>
-                    <option value="Inglês" className="bg-[#0d1017]">Inglês</option>
-                    <option value="Espanhol" className="bg-[#0d1017]">Espanhol</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
+                <input
+                  type="text"
+                  value={idiomaNarracao}
+                  onChange={e => setIdiomaNarracao(e.target.value)}
+                  placeholder="Ex: Português, Inglês (UK)"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
               </div>
               <div>
                 <FieldLabel>Cultura / País Alvo</FieldLabel>

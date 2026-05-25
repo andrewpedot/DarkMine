@@ -1,112 +1,219 @@
 'use server';
 import { updateProject } from './db';
 
-export interface TimeLapseScene {
+export interface CopywritingBlock {
   id: number;
   titulo_cena: string;
-  tempo_inicio: string;
-  tempo_fim: string;
   narracao: string;
-  prompt_video: string;
-  prompt_imagem: string;
-  direcao: string;
 }
 
-export interface TimeLapseScript {
+export interface CopywritingScript {
   titulo: string;
   nicho: string;
-  duracao_total: string;
-  cenas: TimeLapseScene[];
+  subnicho: string;
+  analise_estrategica: string;
+  thumbnail_prompt: string;
+  cenas: CopywritingBlock[];
 }
 
-function getScenesCount(targetWords: number): number {
-  if (targetWords <= 2000) return 4;
-  if (targetWords <= 3000) return 6;
-  if (targetWords <= 3750) return 8;
-  return 9;
+const SYSTEM_PROMPT = `Você é um Estrategista de YouTube de elite e um Roteirista Master de Copywriting Direto, especialista em criar roteiros virais e persuasivos. Sua habilidade única é clonar o ritmo de conteúdos de sucesso, garantir precisão lógica (sem inventar falsos oceanos azuis) e aplicar engenharia de neuromarketing focada puramente na força das palavras.`;
+
+function buildRefTranscriptsBlock(refTranscripts?: { title: string; transcript: string }[]): string {
+  if (!refTranscripts || refTranscripts.length === 0) return '';
+  return `\n---REFERÊNCIAS DE TRANSCRIÇÃO---\n${refTranscripts.map((t, i) => `REFERÊNCIA ${i + 1}: "${t.title}"\n${t.transcript}`).join('\n---\n')}\n---FIM DAS REFERÊNCIAS---`;
 }
 
-export async function generateScript(
-  title: string,
-  niche: string,
-  targetWords: number,
-  projectId?: string,
-  subniche?: string,
-  channelContext?: string,
-): Promise<TimeLapseScript> {
+function buildPrompt({
+  nicho,
+  subnicho,
+  publico_alvo,
+  nivel_consciencia,
+  inimigo_comum,
+  emocao_primaria,
+  tom_de_voz,
+  titulo_video,
+  idioma_narracao,
+  cultura_alvo,
+  palavras_por_bloco,
+  quantidade_blocos,
+  ref_transcripts,
+}: {
+  nicho: string;
+  subnicho: string;
+  publico_alvo: string;
+  nivel_consciencia: number;
+  inimigo_comum: string;
+  emocao_primaria: string;
+  tom_de_voz: string;
+  titulo_video: string;
+  idioma_narracao: string;
+  cultura_alvo: string;
+  palavras_por_bloco: number;
+  quantidade_blocos: number;
+  ref_transcripts?: { title: string; transcript: string }[];
+}) {
+  const refTranscriptsBlock = buildRefTranscriptsBlock(ref_transcripts);
+
+  return `## 1. DADOS DE ENTRADA
+- Nicho: ${nicho}
+- Subnicho: ${subnicho || 'Não especificado'}
+- Público-Alvo: ${publico_alvo || 'Não especificado'}
+- Nível de Consciência (1 a 5): ${nivel_consciencia}
+- Inimigo Comum do Nicho: ${inimigo_comum}
+- Emoção Primária Exigida: ${emocao_primaria}
+- Tom de Voz: ${tom_de_voz}
+- Título do Vídeo: ${titulo_video}
+- Idioma da Narração: ${idioma_narracao}
+- País/Cultura Alvo: ${cultura_alvo}
+- Meta de Palavras por Bloco: ${palavras_por_bloco}
+- Quantidade Total de Blocos: ${quantidade_blocos}
+
+## 2. TRANSCRIÇÕES DE REFERÊNCIA (O RITMO)
+${refTranscriptsBlock || 'Nenhuma transcrição de referência fornecida.'}
+**Regra de Clonagem:** Mimetize estritamente o RITMO, a estrutura de ganchos e a cadência destas referências. Extraia apenas a engenharia da atenção, não o conteúdo.
+
+## 3. LOCALIZAÇÃO CULTURAL
+Pense e escreva DIRETAMENTE como um nativo de: ${cultura_alvo}.
+- Use expressões e nomenclaturas oficiais consagradas neste país e idioma.
+- A narrativa deve soar 100% orgânica para as dores e tradições locais.
+
+## 4. ENGENHARIA DE ROTEIRO E NEUROMARKETING
+1. ATAQUE O CÉREBRO LÍMBICO: O início deve ser puramente emocional. Não use estatísticas complexas de cara. Faça a audiência sentir ${emocao_primaria} intensamente. A lógica entra depois para justificar.
+2. O GANCHO DE 5 SEGUNDOS E O INIMIGO COMUM: Nos primeiros 10 segundos, valide a promessa do ${titulo_video} unindo-se ao público contra o ${inimigo_comum}. Gere empatia imediata. Zero enrolação.
+3. O MECANISMO ÚNICO (OPEN LOOP): A solução não pode ser "mais do mesmo". Estruture a revelação central como um caminho novo. Abra esse mistério no Bloco 1 e entregue a resposta no último bloco.
+4. MICRO-GANCHOS: A ÚLTIMA frase de CADA bloco deve ser um cliffhanger, forçando o espectador a querer ouvir o próximo bloco.
+5. IMAGENS MENTAIS: Como não haverá direcionamento visual, suas palavras devem ser altamente descritivas. Pinte o cenário, a dor e a situação na mente do espectador.
+
+## 5. ANÁLISE PRÉVIA E BLINDAGEM LÓGICA
+Gere o bloco [ANÁLISE ESTRATÉGICA]. Responda em 5 frases curtas (em Português):
+1. Auditoria Lógica: A premissa central é factualmente precisa e logicamente sólida para o ${subnicho || nicho}? (Elimine falhas lógicas e oportunidades irreais).
+2. Adequação: Como a linguagem atingirá cirurgicamente o Nível de Consciência: ${nivel_consciencia}?
+3. Emoção: Como o roteiro sustentará EXCLUSIVAMENTE a emoção de ${emocao_primaria}?
+4. Conexão: Qual nuance de ${cultura_alvo} atacará o ${inimigo_comum}?
+5. Transição: Qual é o Micro-Gancho exato entre o Bloco 1 e o Bloco 2?
+
+## 6. FORMATO DE SAÍDA ESTRITO
+Não adicione textos explicativos fora destes blocos.
+
+[ANÁLISE ESTRATÉGICA]
+(Sua análise de 5 pontos)
+
+---
+[BLOCO: 1 | Título do Bloco]
+
+[NARRAÇÃO]
+(Texto nativo em ${idioma_narracao}. Frase final atua como Micro-Gancho. Tamanho rigoroso: ~${palavras_por_bloco} palavras.)
+---
+(Repita o [BLOCO] até atingir a ${quantidade_blocos})
+
+[THUMBNAIL_PROMPT]
+(Gere um prompt em Inglês para a miniatura seguindo estes padrões validados de YouTube:
+- Contraste extremo (Cores complementares ou objeto saturado em fundo escuro).
+- Foco em transmitir a ${emocao_primaria} (Medo extremo ou Ganância/Desejo).
+- Elemento principal grande e isolado (Ocupando 40% da tela).
+- Sugestão de texto na imagem: Máximo de 3 palavras de alto impacto, fáceis de ler no celular, em fonte grossa.
+- Gatilho visual: Um detalhe incongruente ou uma seta/círculo vermelho sutil que gere curiosidade instantânea.)`;
+}
+
+function parseScript(text: string): { analise_estrategica: string; cenas: CopywritingBlock[]; thumbnail_prompt: string } {
+  // 1. Extract Análise Estratégica
+  const analiseMatch = text.match(/\[ANÁLISE ESTRATÉGICA\]([\s\S]*?)(?=\-\-\-|\[BLOCO|$)/i);
+  const analise_estrategica = analiseMatch ? analiseMatch[1].trim() : '';
+
+  // 2. Extract Thumbnail Prompt
+  const thumbMatch = text.match(/\[THUMBNAIL_PROMPT\]([\s\S]*?)$/i);
+  const thumbnail_prompt = thumbMatch ? thumbMatch[1].trim() : '';
+
+  // Remove thumbnail prompt from text to avoid matching it in last block
+  const mainText = thumbMatch ? text.slice(0, thumbMatch.index) : text;
+
+  // 3. Extract blocks
+  const cenas: CopywritingBlock[] = [];
+  const blockRegex = /\[BLOCO:\s*(\d+)\s*\|\s*([^\]]+)\]/gi;
+  let match;
+  const matches: { index: number; id: number; title: string }[] = [];
+  
+  while ((match = blockRegex.exec(mainText)) !== null) {
+    matches.push({
+      index: match.index,
+      id: parseInt(match[1]),
+      title: match[2].trim()
+    });
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const startIdx = matches[i].index;
+    const endIdx = i + 1 < matches.length ? matches[i + 1].index : mainText.length;
+    const blockContent = mainText.substring(startIdx, endIdx);
+
+    const narracaoMatch = blockContent.match(/\[NARRAÇÃO\]([\s\S]*?)$/i);
+    const narracao = narracaoMatch ? narracaoMatch[1].trim() : '';
+
+    cenas.push({
+      id: matches[i].id,
+      titulo_cena: matches[i].title,
+      narracao: narracao
+    });
+  }
+
+  return {
+    analise_estrategica,
+    cenas,
+    thumbnail_prompt
+  };
+}
+
+export async function generateScript(params: {
+  title: string;
+  niche: string;
+  subniche?: string;
+  publico_alvo?: string;
+  nivel_consciencia?: number;
+  inimigo_comum?: string;
+  emocao_primaria?: string;
+  tom_de_voz?: string;
+  idioma_narracao?: string;
+  cultura_alvo?: string;
+  palavras_por_bloco?: number;
+  quantidade_blocos?: number;
+  projectId?: string;
+  ref_transcripts?: { title: string; transcript: string }[];
+}): Promise<CopywritingScript> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('Erro: Chave da Anthropic não encontrada no .env');
 
-  const scenesCount = getScenesCount(targetWords);
-  const wordsPerScene = Math.round(targetWords / scenesCount);
-  const estimatedMinutes = Math.round(targetWords / 150);
+  const {
+    title,
+    niche,
+    subniche = '',
+    publico_alvo = '',
+    nivel_consciencia = 3,
+    inimigo_comum = '',
+    emocao_primaria = '',
+    tom_de_voz = '',
+    idioma_narracao = 'Português',
+    cultura_alvo = 'Brasil',
+    palavras_por_bloco = 200,
+    quantidade_blocos = 5,
+    projectId,
+    ref_transcripts
+  } = params;
 
-  const subnicheInstruction = subniche
-    ? `\nSUBNICHE (use in VIDEO and IMAGE prompts for visual specificity): "${subniche}"`
-    : '';
-
-  const channelContextInstruction = channelContext
-    ? `\nCHANNEL CONTEXT (use to calibrate narration tone and direction notes): "${channelContext}"`
-    : '';
-
-  const systemPrompt = `You are an expert scriptwriter for dark faceless YouTube channels specializing in time-lapse nature documentary content. Your narration style is David Attenborough in Planet Earth — sparse, poetic, reverent, with dramatic silences between impactful phrases.
-
-You must generate a complete time-lapse documentary script. The narration is in ENGLISH and will be read by a deep, calm voice over AI-generated time-lapse footage. Practical tips about tropical climate cultivation are woven naturally into the visual observation — never lecturing, always observing.
-
-NARRATION RULES:
-- Short sentences. Maximum 15 words before a natural pause.
-- Use "..." to mark dramatic pauses — give the viewer time to absorb each thought.
-- The visual is the protagonist. Narration AMPLIFIES what the eye sees, never competes with it.
-- Each narration block: approximately ${wordsPerScene} words.
-- Total narration across all ${scenesCount} scenes: approximately ${targetWords} words.
-- Weave practical tropical cultivation tips naturally — let them emerge from observation, not from instruction.
-
-VIDEO PROMPT RULES (Runway ML / Kling AI — time-lapse):
-- English only.
-- Describe the exact visual transformation in the time-lapse.
-- Format: [subject] [transformation/movement], [lighting], [camera angle], time-lapse, 4K, cinematic documentary, [mood]
-- Example: "Tomato seedling emerging from dark tropical soil, roots first then green shoot rising, warm golden side-lighting, extreme macro, time-lapse, 4K, cinematic documentary, reverent"
-
-IMAGE PROMPT RULES (Midjourney / Flux — static cutaway shots):
-- English only.
-- Still beauty shots between time-lapse segments.
-- No text in image.
-- Format: [subject], [setting/mood], [lighting], cinematic nature photography, highly detailed, --ar 16:9
-
-DIRECTION RULES (production notes in Portuguese):
-- Music cue: type and energy level.
-- Narration timing: when it enters and exits.
-- Pacing: slow / medium / fast.
-- Transition to next scene.
-- Text overlay or chapter marker if applicable.
-
-Return ONLY valid JSON, no markdown, no explanation:
-{
-  "titulo": "string",
-  "nicho": "string",
-  "duracao_total": "string",
-  "cenas": [
-    {
-      "id": 1,
-      "titulo_cena": "string",
-      "tempo_inicio": "0:00",
-      "tempo_fim": "3:00",
-      "narracao": "string — English, Attenborough style, ~${wordsPerScene} words",
-      "prompt_video": "string — English, Runway/Kling format",
-      "prompt_imagem": "string — English, Midjourney/Flux format with --ar 16:9",
-      "direcao": "string — Portuguese, production notes"
-    }
-  ]
-}`;
-
-  const userMessage = `Video Title: "${title}"
-Niche: "${niche}"${subnicheInstruction}${channelContextInstruction}
-Target Word Count: ${targetWords} words (~${estimatedMinutes} min)
-Number of Scenes: ${scenesCount}
-Words per narration scene: ~${wordsPerScene}
-Climate focus: tropical/subtropical
-
-Generate the complete time-lapse documentary script in JSON only.`;
+  const promptText = buildPrompt({
+    nicho: niche,
+    subnicho: subniche,
+    publico_alvo,
+    nivel_consciencia,
+    inimigo_comum,
+    emocao_primaria,
+    tom_de_voz,
+    titulo_video: title,
+    idioma_narracao,
+    cultura_alvo,
+    palavras_por_bloco,
+    quantidade_blocos,
+    ref_transcripts,
+  });
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -118,8 +225,8 @@ Generate the complete time-lapse documentary script in JSON only.`;
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: promptText }],
     }),
   });
 
@@ -129,14 +236,18 @@ Generate the complete time-lapse documentary script in JSON only.`;
   }
 
   const data = await response.json();
-  let content = data.content[0].text.trim();
+  const content = data.content[0].text.trim();
 
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (jsonMatch) content = jsonMatch[0];
-  else if (content.startsWith('```json')) content = content.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-  else if (content.startsWith('```')) content = content.replace(/^```\n?/, '').replace(/\n?```$/, '');
+  const parsed = parseScript(content);
 
-  const result: TimeLapseScript = JSON.parse(content.trim());
+  const result: CopywritingScript = {
+    titulo: title,
+    nicho: niche,
+    subnicho: subniche,
+    analise_estrategica: parsed.analise_estrategica,
+    thumbnail_prompt: parsed.thumbnail_prompt,
+    cenas: parsed.cenas
+  };
 
   if (projectId) {
     await updateProject(projectId, {

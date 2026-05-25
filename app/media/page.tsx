@@ -188,11 +188,13 @@ function PreviewModal({
   isSelected,
   onClose,
   onToggle,
+  onClip,
 }: {
   item: MediaItem;
   isSelected: boolean;
   onClose: () => void;
   onToggle: (item: MediaItem) => void;
+  onClip: (item: MediaItem) => void;
 }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -274,6 +276,15 @@ function PreviewModal({
             >
               {isSelected ? 'Selecionado ✓' : 'Selecionar'}
             </button>
+            {item.source === 'youtube_cc' && (
+              <button
+                onClick={() => { onClip(item); onClose(); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all flex items-center gap-1.5"
+              >
+                <IconScissors />
+                Clipar
+              </button>
+            )}
             <button
               onClick={() => window.open(item.downloadUrl, '_blank')}
               className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors flex items-center gap-1.5"
@@ -296,132 +307,262 @@ function ClipEditor({
   item: MediaItem;
   onClose: () => void;
 }) {
-  const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(Math.min(30, item.duration || 30));
+  const DEFAULT_CLIP = 10;
+  const [start, setStart]           = useState(0);
+  const [end, setEnd]               = useState(Math.min(DEFAULT_CLIP, item.duration || DEFAULT_CLIP));
+  const [currentTime, setCurrentTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(item.duration || 0);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [dragging, setDragging]     = useState<'start' | 'end' | null>(null);
   const [isClipping, setIsClipping] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError]           = useState('');
 
+  const playerRef   = useRef<any>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playerDivId = `yt-player-${item.youtubeId}`;
+
+  // ── Carrega YouTube IFrame API e inicia player ────────────────────────────
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+    const initPlayer = () => {
+      if (!document.getElementById(playerDivId)) return;
+      playerRef.current = new (window as any).YT.Player(playerDivId, {
+        videoId: item.youtubeId,
+        playerVars: { rel: 0, modestbranding: 1, autoplay: 0, enablejsapi: 1 },
+        events: {
+          onReady: (e: any) => {
+            setPlayerReady(true);
+            const dur = e.target.getDuration?.() || 0;
+            if (dur > 0) {
+              setVideoDuration(dur);
+              setEnd(Math.min(DEFAULT_CLIP, dur));
+            }
+          },
+        },
+      });
+    };
 
-  const duration = end - start;
-  const isValid = duration > 0 && duration <= 60;
+    if ((window as any).YT?.Player) {
+      initPlayer();
+    } else {
+      const prev = (window as any).onYouTubeIframeAPIReady;
+      (window as any).onYouTubeIframeAPIReady = () => { prev?.(); initPlayer(); };
+      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+      }
+    }
 
+    pollRef.current = setInterval(() => {
+      try { setCurrentTime(playerRef.current?.getCurrentTime?.() ?? 0); } catch {}
+    }, 150);
+
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+
+    return () => {
+      clearInterval(pollRef.current!);
+      window.removeEventListener('keydown', esc);
+      try { playerRef.current?.destroy?.(); } catch {}
+    };
+  }, []);
+
+  // ── Drag na timeline ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      if (!timelineRef.current) return;
+      const rect = timelineRef.current.getBoundingClientRect();
+      const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const t    = pct * (videoDuration || 1);
+      if (dragging === 'start') {
+        const ns = Math.max(0, Math.min(t, end - 1));
+        setStart(ns);
+        playerRef.current?.seekTo?.(ns, true);
+      } else {
+        const ne = Math.min(videoDuration, Math.max(t, start + 1), start + 60);
+        setEnd(ne);
+      }
+    };
+    const onUp = () => setDragging(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [dragging, start, end, videoDuration]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const seekTo = (t: number) => playerRef.current?.seekTo?.(t, true);
+  const fmt = (s: number) => {
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const markIn = () => {
+    const t = Math.floor(currentTime);
+    setStart(t);
+    if (end <= t) setEnd(Math.min(t + DEFAULT_CLIP, videoDuration || t + DEFAULT_CLIP));
+  };
+  const markOut = () => {
+    const t = Math.ceil(currentTime);
+    const ne = Math.min(t, start + 60, videoDuration || start + 60);
+    setEnd(Math.max(ne, start + 1));
+  };
+
+  const handleTimelineClick = (e: React.MouseEvent) => {
+    if (!timelineRef.current || dragging) return;
+    const rect = timelineRef.current.getBoundingClientRect();
+    const pct  = (e.clientX - rect.left) / rect.width;
+    seekTo(pct * (videoDuration || 1));
+  };
+
+  const clipDuration = end - start;
+  const isValid = clipDuration > 0 && clipDuration <= 60;
+  const dur = videoDuration || 1;
+  const startPct  = (start / dur) * 100;
+  const endPct    = (end   / dur) * 100;
+  const playPct   = (currentTime / dur) * 100;
+
+  // ── Download ──────────────────────────────────────────────────────────────
   async function handleClip() {
     if (!isValid) return;
-    setIsClipping(true);
-    setError('');
+    setIsClipping(true); setError('');
     try {
       const res = await fetch('/api/media/clip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtubeId: item.youtubeId, startTime: start, endTime: end }),
+        body: JSON.stringify({ youtubeId: item.youtubeId, startTime: Math.floor(start), endTime: Math.ceil(end) }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Erro ao clipar');
-        return;
-      }
+      if (!res.ok) { setError((await res.json()).error || 'Erro ao clipar'); return; }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `clip_${item.youtubeId}_${start}-${end}.mp4`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e: any) {
-      setError(e.message || 'Erro de rede');
-    } finally {
-      setIsClipping(false);
-    }
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `clip_${item.youtubeId}_${Math.floor(start)}-${Math.ceil(end)}.mp4`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e: any) { setError(e.message || 'Erro de rede'); }
+    finally { setIsClipping(false); }
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden max-w-2xl w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
           <div className="flex items-center gap-2 text-red-400">
             <IconScissors />
             <span className="text-sm font-bold">Clip Editor</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
-            <IconX />
-          </button>
+          <div className="flex items-center gap-3">
+            <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Abrir no YouTube ↗
+            </a>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+              <IconX />
+            </button>
+          </div>
         </div>
 
-        {/* YouTube embed */}
-        <iframe
-          src={`https://www.youtube.com/embed/${item.youtubeId}?start=${start}&autoplay=0`}
-          className="w-full aspect-video"
-          allowFullScreen
-        />
+        {/* Player */}
+        <div className="relative w-full aspect-video bg-black">
+          <div id={playerDivId} className="w-full h-full" />
+        </div>
 
-        {/* Controls */}
-        <div className="p-4 space-y-4">
-          <p className="text-xs text-gray-500 line-clamp-1">{item.title}</p>
+        {/* Timeline + Controls */}
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-gray-500 truncate">{item.title}</p>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-1">
-                Início (segundos)
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={item.duration || 9999}
-                value={start}
-                onChange={(e) => setStart(Math.max(0, Number(e.target.value)))}
-                className="input-dark w-full px-3 py-2 rounded-xl text-sm font-mono"
+          {/* Timeline bar */}
+          <div className="space-y-1.5">
+            <div
+              ref={timelineRef}
+              className="relative h-8 rounded-lg bg-white/5 cursor-pointer select-none overflow-visible"
+              onClick={handleTimelineClick}
+            >
+              {/* Track */}
+              <div className="absolute inset-0 rounded-lg" />
+
+              {/* Selected range */}
+              <div
+                className="absolute top-0 h-full bg-red-500/30 border-t border-b border-red-500/50"
+                style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
               />
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-1">
-                Fim (segundos)
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={item.duration || 9999}
-                value={end}
-                onChange={(e) => setEnd(Math.max(0, Number(e.target.value)))}
-                className="input-dark w-full px-3 py-2 rounded-xl text-sm font-mono"
-              />
-            </div>
-          </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-mono">
-              <span className={duration > 60 ? 'text-red-400' : 'text-gray-400'}>
-                Duração: {duration}s
-              </span>
-              {duration > 60 && <span className="text-red-400 ml-2">(máx 60s)</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={item.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              {/* Playhead */}
+              <div
+                className="absolute top-0 h-full w-0.5 bg-white/70 z-10 pointer-events-none"
+                style={{ left: `${playPct}%` }}
               >
-                Abrir no YouTube ↗
-              </a>
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rounded-full" />
+              </div>
+
+              {/* Start handle */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 cursor-ew-resize group"
+                style={{ left: `${startPct}%` }}
+                onMouseDown={e => { e.stopPropagation(); setDragging('start'); }}
+              >
+                <div className="w-3.5 h-8 bg-green-400 rounded-sm flex items-center justify-center shadow-lg group-hover:bg-green-300 transition-colors">
+                  <div className="w-0.5 h-4 bg-green-900/50 rounded-full" />
+                </div>
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono text-green-400 whitespace-nowrap">
+                  {fmt(start)}
+                </div>
+              </div>
+
+              {/* End handle */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 cursor-ew-resize group"
+                style={{ left: `${endPct}%` }}
+                onMouseDown={e => { e.stopPropagation(); setDragging('end'); }}
+              >
+                <div className="w-3.5 h-8 bg-red-400 rounded-sm flex items-center justify-center shadow-lg group-hover:bg-red-300 transition-colors">
+                  <div className="w-0.5 h-4 bg-red-900/50 rounded-full" />
+                </div>
+                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] font-mono text-red-400 whitespace-nowrap">
+                  {fmt(end)}
+                </div>
+              </div>
+            </div>
+
+            {/* Time labels */}
+            <div className="flex justify-between text-[10px] font-mono text-gray-600 mt-4">
+              <span>0:00</span>
+              <span className="text-gray-400">▶ {fmt(currentTime)}</span>
+              <span>{fmt(videoDuration)}</span>
             </div>
           </div>
+
+          {/* Mark IN / OUT + info */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={markIn}
+              disabled={!playerReady}
+              className="flex-1 py-2 rounded-xl text-xs font-bold bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 disabled:opacity-30 transition-colors"
+            >
+              ▶ Marcar IN
+            </button>
+            <div className="text-xs font-mono text-center min-w-[64px]">
+              <span className={clipDuration > 60 ? 'text-red-400' : 'text-gray-300'}>
+                {Math.round(clipDuration)}s
+              </span>
+              {clipDuration > 60 && <div className="text-red-400 text-[9px]">máx 60s</div>}
+            </div>
+            <button
+              onClick={markOut}
+              disabled={!playerReady}
+              className="flex-1 py-2 rounded-xl text-xs font-bold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 disabled:opacity-30 transition-colors"
+            >
+              Marcar OUT ■
+            </button>
+          </div>
+
+          {!playerReady && (
+            <p className="text-[10px] text-gray-600 text-center">Carregando player…</p>
+          )}
 
           {error && (
-            <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
-              {error}
-            </div>
+            <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</div>
           )}
 
           <button
@@ -430,18 +571,9 @@ function ClipEditor({
             className="w-full py-3 rounded-xl text-sm font-black text-white bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
             {isClipping ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Extraindo clipe...
-              </>
+              <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Extraindo clipe…</>
             ) : (
-              <>
-                <IconScissors />
-                Baixar Clipe ({duration}s)
-              </>
+              <><IconScissors />Baixar Clipe ({Math.round(clipDuration)}s)</>
             )}
           </button>
         </div>
@@ -789,7 +921,10 @@ export default function MediaPage() {
               {hasSearched && results.length === 0 && !isLoading && (
                 <div className="text-center py-24 text-gray-600">
                   <p className="text-sm">Nenhum resultado encontrado para <span className="text-gray-400">"{query}"</span></p>
-                  <p className="text-xs mt-1">Tente outros termos ou ative mais fontes</p>
+                  {quality === '4k'
+                    ? <p className="text-xs mt-1 text-yellow-600/80">Filtro <strong>4K</strong> muito restritivo — tente mudar para <strong>HD</strong> ou <strong>Todos</strong></p>
+                    : <p className="text-xs mt-1">Tente outros termos, ative mais fontes ou mude o filtro de qualidade</p>
+                  }
                 </div>
               )}
 
@@ -847,6 +982,7 @@ export default function MediaPage() {
           isSelected={isSelected(previewItem)}
           onClose={() => setPreviewItem(null)}
           onToggle={toggleSelected}
+          onClip={setClipItem}
         />
       )}
 

@@ -5,139 +5,39 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Channel } from '../../types/database';
 
-type BlockType = 'narracao' | 'video' | 'imagem' | 'direcao' | 'thumbnail';
+type BlockType = 'narracao' | 'thumbnail';
 type CopiedState = { sceneId: number; block: BlockType } | null;
-type FilterType = 'all' | BlockType;
 
 interface SceneData {
   id: number;
   titulo_cena: string;
-  tempo_inicio: string;
-  tempo_fim: string;
   narracao: string;
-  video?: string;
-  imagem?: string;
-  direcao: string;
-  thumbnail?: string;
-  prompt_video?: string;
-  prompt_imagem?: string;
 }
 
 interface ScriptData {
   titulo: string;
   nicho: string;
-  duracao_total: string;
-  idioma?: string;
-  total_words?: number;
+  subnicho?: string;
+  analise_estrategica?: string;
+  thumbnail_prompt?: string;
   cenas: SceneData[];
 }
 
-const WORD_OPTIONS = [
-  { words: 1500, label: '1500 words', sublabel: '~10 min' },
-  { words: 1750, label: '1750 words', sublabel: '~11.7 min' },
-  { words: 2000, label: '2000 words', sublabel: '~13.3 min' },
-  { words: 2250, label: '2250 words', sublabel: '~15 min' },
-  { words: 2500, label: '2500 words', sublabel: '~16.7 min' },
-  { words: 2750, label: '2750 words', sublabel: '~18.3 min' },
-  { words: 3000, label: '3000 words', sublabel: '~20 min' },
-  { words: 3250, label: '3250 words', sublabel: '~21.7 min' },
-  { words: 3500, label: '3500 words', sublabel: '~23.3 min' },
-  { words: 3750, label: '3750 words', sublabel: '~25 min' },
-  { words: 4000, label: '4000 words', sublabel: '~26.7 min' },
-  { words: 4250, label: '4250 words', sublabel: '~28.3 min' },
-  { words: 4500, label: '4500 words', sublabel: '~30 min' },
-] as const;
-
-const BLOCK_CONFIG: Record<BlockType, {
-  label: string;
-  sublabel: string;
-  borderClass: string;
-  bgClass: string;
-  badgeClass: string;
-  textClass: string;
-  filterLabel: string;
-  icon: React.ReactNode;
-}> = {
+const BLOCK_CONFIG = {
   narracao: {
     label: 'Narração',
-    sublabel: 'Voz — Estilo Attenborough',
+    sublabel: 'Texto de copywriting',
     borderClass: 'border-l-[3px] border-blue-500/70',
     bgClass: 'bg-blue-500/[0.04]',
     badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
     textClass: 'text-blue-400',
-    filterLabel: 'Narração',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
       </svg>
     ),
-  },
-  video: {
-    label: 'Prompt de Vídeo',
-    sublabel: 'VEO3 / Kling AI',
-    borderClass: 'border-l-[3px] border-emerald-500/70',
-    bgClass: 'bg-emerald-500/[0.04]',
-    badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-    textClass: 'text-emerald-400',
-    filterLabel: 'Vídeo',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  imagem: {
-    label: 'Prompt de Imagem',
-    sublabel: 'Nano Banana',
-    borderClass: 'border-l-[3px] border-amber-500/70',
-    bgClass: 'bg-amber-500/[0.04]',
-    badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
-    textClass: 'text-amber-400',
-    filterLabel: 'Imagem',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  thumbnail: {
-    label: 'Thumbnail',
-    sublabel: 'YouTube — Nano Banana',
-    borderClass: 'border-l-[3px] border-orange-500/70',
-    bgClass: 'bg-orange-500/[0.04]',
-    badgeClass: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
-    textClass: 'text-orange-400',
-    filterLabel: 'Thumbnail',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-      </svg>
-    ),
-  },
-  direcao: {
-    label: 'Direção',
-    sublabel: 'Notas de produção',
-    borderClass: 'border-l-[3px] border-violet-500/70',
-    bgClass: 'bg-violet-500/[0.04]',
-    badgeClass: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
-    textClass: 'text-violet-400',
-    filterLabel: 'Direção',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-    ),
-  },
+  }
 };
-
-const BLOCK_ORDER: BlockType[] = ['narracao', 'video', 'imagem', 'thumbnail', 'direcao'];
-
-function getScenesCount(targetWords: number): number {
-  if (targetWords <= 2000) return 4;
-  if (targetWords <= 3000) return 6;
-  if (targetWords <= 3750) return 8;
-  return 9;
-}
 
 function SceneBlock({
   type,
@@ -145,18 +45,15 @@ function SceneBlock({
   sceneId,
   copied,
   onCopy,
-  clipLabel,
 }: {
-  type: BlockType;
+  type: 'narracao';
   text: string;
   sceneId: number;
   copied: CopiedState;
   onCopy: (text: string, sceneId: number, block: BlockType) => void;
-  clipLabel?: string;
 }) {
   const cfg = BLOCK_CONFIG[type];
   const isCopied = copied?.sceneId === sceneId && copied?.block === type;
-  const isMono = type === 'video' || type === 'imagem' || type === 'thumbnail';
 
   if (!text) return null;
 
@@ -166,7 +63,7 @@ function SceneBlock({
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cfg.textClass}>{cfg.icon}</span>
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${cfg.badgeClass}`}>
-            {clipLabel || cfg.label}
+            {cfg.label}
           </span>
           <span className="text-[10px] text-gray-600">{cfg.sublabel}</span>
         </div>
@@ -178,24 +75,10 @@ function SceneBlock({
               : 'border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20 hover:bg-white/10'
           }`}
         >
-          {isCopied ? (
-            <>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-              Copiado!
-            </>
-          ) : (
-            <>
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Copiar
-            </>
-          )}
+          {isCopied ? 'Copiado!' : 'Copiar'}
         </button>
       </div>
-      <p className={`text-sm text-gray-300 leading-relaxed whitespace-pre-wrap ${isMono ? 'font-mono' : ''}`}>
+      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
         {text}
       </p>
     </div>
@@ -207,18 +90,13 @@ function SceneCard({
   index,
   copied,
   onCopy,
-  visibleBlocks,
 }: {
   scene: SceneData;
   index: number;
   copied: CopiedState;
   onCopy: (text: string, sceneId: number, block: BlockType) => void;
-  visibleBlocks: FilterType;
 }) {
   const [expanded, setExpanded] = useState(true);
-
-  const getVideoText = () => scene.video || scene.prompt_video || '';
-  const getImagemText = () => scene.imagem || scene.prompt_imagem || '';
 
   return (
     <div className="bg-black/40 border border-white/5 rounded-2xl overflow-hidden hover:border-white/10 transition-colors">
@@ -232,9 +110,6 @@ function SceneCard({
           </span>
           <div className="text-left">
             <h3 className="text-base font-bold text-white leading-tight">{scene.titulo_cena}</h3>
-            <span className="text-xs font-mono text-gray-500">
-              {scene.tempo_inicio} — {scene.tempo_fim}
-            </span>
           </div>
         </div>
         <svg
@@ -247,57 +122,13 @@ function SceneCard({
 
       {expanded && (
         <div className="p-5 flex flex-col gap-3">
-          {(visibleBlocks === 'all' ? BLOCK_ORDER : [visibleBlocks as BlockType]).map(blockType => {
-            if (blockType === 'video') {
-              const videoText = getVideoText();
-              const clipPattern = /\[CLIP \d+\/\d+\]/gi;
-              const clips = videoText.split(/(?=\[CLIP )/i).filter(c => c.trim());
-              if (clips.length > 0 && clips[0].match(clipPattern)) {
-                return clips.map((clip, clipIdx) => {
-                  const clipMatch = clip.match(/\[CLIP (\d+)\/(\d+)\]/i);
-                  const clipNum = clipMatch ? clipMatch[1] : clipIdx + 1;
-                  const clipTotal = clipMatch ? clipMatch[2] : clips.length;
-                  const clipText = clip.replace(/\[CLIP \d+\/\d+\]/i, '').trim();
-                  return (
-                    <SceneBlock
-                      key={`video-clip-${clipIdx}`}
-                      type={blockType}
-                      text={clipText}
-                      clipLabel={`CLIP ${clipNum}/${clipTotal}`}
-                      sceneId={scene.id}
-                      copied={copied}
-                      onCopy={onCopy}
-                    />
-                  );
-                });
-              }
-              return (
-                <SceneBlock
-                  key={blockType}
-                  type={blockType}
-                  text={videoText}
-                  sceneId={scene.id}
-                  copied={copied}
-                  onCopy={onCopy}
-                />
-              );
-            }
-            let text = '';
-            if (blockType === 'narracao') text = scene.narracao;
-            if (blockType === 'imagem') text = getImagemText();
-            if (blockType === 'direcao') text = scene.direcao;
-            if (blockType === 'thumbnail') text = scene.thumbnail || '';
-            return (
-              <SceneBlock
-                key={blockType}
-                type={blockType}
-                text={text}
-                sceneId={scene.id}
-                copied={copied}
-                onCopy={onCopy}
-              />
-            );
-          })}
+          <SceneBlock
+            type="narracao"
+            text={scene.narracao}
+            sceneId={scene.id}
+            copied={copied}
+            onCopy={onCopy}
+          />
         </div>
       )}
     </div>
@@ -317,11 +148,24 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
 
 function DarkScriptGenerator() {
   const router = useRouter();
+  
+  // Base details
   const [title, setTitle] = useState('');
   const [niche, setNiche] = useState('');
   const [subniche, setSubniche] = useState('');
   const [channelContext, setChannelContext] = useState('');
-  const [targetWords, setTargetWords] = useState(3000);
+  
+  // Copywriting specific parameters
+  const [publicoAlvo, setPublicoAlvo] = useState('');
+  const [nivelConsciencia, setNivelConsciencia] = useState(3);
+  const [inimigoComum, setInimigoComum] = useState('');
+  const [emocaoPrimaria, setEmocaoPrimaria] = useState('');
+  const [tomDeVoz, setTomDeVoz] = useState('');
+  const [idiomaNarracao, setIdiomaNarracao] = useState('Português');
+  const [culturaAlvo, setCulturaAlvo] = useState('Brasil');
+  const [palavrasPorBloco, setPalavrasPorBloco] = useState(200);
+  const [quantidadeBlocos, setQuantidadeBlocos] = useState(5);
+
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState('');
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -331,7 +175,6 @@ function DarkScriptGenerator() {
   const [copied, setCopied] = useState<CopiedState>(null);
   const [streamingText, setStreamingText] = useState('');
   const [generationStage, setGenerationStage] = useState<'idle' | 'generating' | 'parsing' | 'done'>('idle');
-  const [filter, setFilter] = useState<FilterType>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [fullNarration, setFullNarration] = useState('');
   const [flowToast, setFlowToast] = useState<string | null>(null);
@@ -385,9 +228,19 @@ function DarkScriptGenerator() {
           nicho: script.nicho,
           subnicho: subniche,
           contexto: channelContext,
-          wordcount: targetWords,
+          wordcount: palavrasPorBloco * quantidadeBlocos,
           conteudo: script,
           conteudo_raw: rawScript,
+          // metadata fields
+          publico_alvo: publicoAlvo,
+          nivel_consciencia: nivelConsciencia,
+          inimigo_comum: inimigoComum,
+          emocao_primaria: emocaoPrimaria,
+          tom_de_voz: tomDeVoz,
+          idioma_narracao: idiomaNarracao,
+          cultura_alvo: culturaAlvo,
+          palavras_por_bloco: palavrasPorBloco,
+          quantidade_blocos: quantidadeBlocos,
         }),
       });
       const data = await response.json();
@@ -430,97 +283,28 @@ function DarkScriptGenerator() {
       setTitle(savedScript.conteudo.titulo || savedScript.titulo || '');
       setNiche(savedScript.conteudo.nicho || savedScript.nicho || '');
       setSubniche(savedScript.conteudo.subnicho || savedScript.subnicho || '');
-      setTargetWords(savedScript.wordcount || 3000);
-      setFilter('all');
+      
+      const content = savedScript.conteudo;
+      setPublicoAlvo(content.publico_alvo || savedScript.publico_alvo || '');
+      setNivelConsciencia(content.nivel_consciencia || savedScript.nivel_consciencia || 3);
+      setInimigoComum(content.inimigo_comum || savedScript.inimigo_comum || '');
+      setEmocaoPrimaria(content.emocao_primaria || savedScript.emocao_primaria || '');
+      setTomDeVoz(content.tom_de_voz || savedScript.tom_de_voz || '');
+      setIdiomaNarracao(content.idioma_narracao || savedScript.idioma_narracao || 'Português');
+      setCulturaAlvo(content.cultura_alvo || savedScript.cultura_alvo || 'Brasil');
+      setPalavrasPorBloco(content.palavras_por_bloco || savedScript.palavras_por_bloco || 200);
+      setQuantidadeBlocos(content.quantidade_blocos || savedScript.quantidade_blocos || 5);
+      
       setGenerationStage('done');
 
       if (savedScript.conteudo.cenas) {
         const narrationText = savedScript.conteudo.cenas
-          .map((s: any, i: number) => `[CENA ${i + 1}]\n${s.narracao}`)
+          .map((s: any, i: number) => `[BLOCO ${i + 1}]\n${s.narracao}`)
           .join('\n\n');
         setFullNarration(narrationText);
       }
     }
     setShowLoadModal(false);
-  };
-
-  const handleSendToFlow = () => {
-    console.log('scriptData:', script, 'rawScript:', streamingText?.substring(0, 200));
-
-    const scriptData = script;
-    let videoPrompts: string[] = [];
-
-    if (scriptData && scriptData.cenas) {
-      videoPrompts = scriptData.cenas.flatMap((cena: any) =>
-        (cena.blocos || cena.blocks || [])
-          .filter((b: any) =>
-            b.tipo === 'video' || b.type === 'video' ||
-            (b.label || '').toLowerCase().includes('vídeo') ||
-            (b.label || '').toLowerCase().includes('video')
-          )
-          .map((b: any) => b.conteudo || b.content || b.text || '')
-          .filter(Boolean)
-      );
-    } else if (scriptData && Array.isArray(scriptData)) {
-      videoPrompts = scriptData.flatMap((cena: any) =>
-        (cena.blocos || cena.blocks || [])
-          .filter((b: any) => b.tipo === 'video' || b.type === 'video')
-          .map((b: any) => b.conteudo || b.content || b.text || '')
-          .filter(Boolean)
-      );
-    }
-
-    if (videoPrompts.length === 0 && scriptData?.cenas) {
-      for (const cena of scriptData.cenas) {
-        const videoText = cena.video || cena.prompt_video || '';
-        if (!videoText.trim()) continue;
-
-        const clipPattern = /\[CLIP \d+\/\d+\]/gi;
-        const clips = videoText.split(/(?=\[CLIP )/i).filter(c => c.trim());
-
-        for (const clip of clips) {
-          if (clip.match(clipPattern)) {
-            const clipText = clip.replace(/\[CLIP \d+\/\d+\]/i, '').trim();
-            if (clipText) {
-              videoPrompts.push(clipText);
-            }
-          } else if (videoText && !videoText.includes('[CLIP')) {
-            videoPrompts.push(videoText.trim());
-            break;
-          }
-        }
-      }
-    }
-
-    if (videoPrompts.length === 0 && streamingText) {
-      const clipRegex = /\[CLIP\s+\d+\/\d+\][^\[]+/g;
-      const matches = streamingText.match(clipRegex) || [];
-      videoPrompts = matches.map((m: string) => m.replace(/^\[CLIP\s+\d+\/\d+\]\s*/, '').trim());
-    }
-
-    console.log('Video prompts encontrados:', videoPrompts.length);
-
-    if (videoPrompts.length === 0) {
-      setFlowToast('Nenhum prompt de vídeo encontrado. Verifique se o roteiro foi gerado corretamente.');
-      setTimeout(() => setFlowToast(null), 4000);
-      return;
-    }
-
-    const handleConfirmation = (e: MessageEvent) => {
-      if (e.data?.type === 'DARKMINE_FLOW_CONFIRMED') {
-        setFlowToast(`✓ ${videoPrompts.length} clips prontos na extensão — abra o ícone ⚡`);
-        setTimeout(() => setFlowToast(null), 5000);
-      }
-      window.removeEventListener('message', handleConfirmation);
-    };
-    window.addEventListener('message', handleConfirmation);
-
-    window.postMessage({
-      type: 'DARKMINE_FLOW_QUEUE',
-      prompts: videoPrompts,
-      videoTitle: title,
-      delay: 90,
-    }, '*');
   };
 
   const handleGenerate = async () => {
@@ -530,7 +314,6 @@ function DarkScriptGenerator() {
     setError(null);
     setStreamingText('');
     setGenerationStage('generating');
-    setFilter('all');
 
     try {
       const response = await fetch('/api/script', {
@@ -541,7 +324,15 @@ function DarkScriptGenerator() {
           niche,
           subniche: subniche.trim() || undefined,
           context: channelContext.trim() || undefined,
-          wordCount: targetWords,
+          publico_alvo: publicoAlvo.trim() || undefined,
+          nivel_consciencia: Number(nivelConsciencia),
+          inimigo_comum: inimigoComum.trim() || undefined,
+          emocao_primaria: emocaoPrimaria.trim() || undefined,
+          tom_de_voz: tomDeVoz.trim() || undefined,
+          idioma_narracao: idiomaNarracao || 'Português',
+          cultura_alvo: culturaAlvo.trim() || undefined,
+          palavras_por_bloco: Number(palavrasPorBloco),
+          quantidade_blocos: Number(quantidadeBlocos),
           ref_transcripts: selectedChannel?.ref_transcripts?.length ? selectedChannel.ref_transcripts : undefined,
           ref_titles: selectedChannel?.ref_titles?.length ? selectedChannel.ref_titles : undefined,
         }),
@@ -582,7 +373,7 @@ function DarkScriptGenerator() {
                 throw new Error('Roteiro gerado em formato inválido.');
               }
               const narrationText = result.cenas
-                .map((s, i) => `[CENA ${i + 1}]\n${s.narracao}`)
+                .map((s, i) => `[BLOCO ${i + 1}]\n${s.narracao}`)
                 .join('\n\n');
               setFullNarration(narrationText);
               setScript(result);
@@ -604,12 +395,7 @@ function DarkScriptGenerator() {
     }
   };
 
-  const totalWords = script?.cenas.reduce((acc, s) => acc + (s.narracao?.split(/\s+/).length || 0), 0) || 0;
-  const totalClips = script?.cenas.reduce((acc, s) => {
-    const videoText = s.video || s.prompt_video || '';
-    const clipMatches = (videoText.match(/\[CLIP \d+\/\d+\]/gi) || []).length;
-    return acc + (clipMatches > 0 ? clipMatches : 1);
-  }, 0) || 0;
+  const totalWords = palavrasPorBloco * quantidadeBlocos;
 
   return (
     <div className="min-h-screen bg-[#080b12] relative overflow-x-hidden text-gray-200">
@@ -625,7 +411,7 @@ function DarkScriptGenerator() {
             </div>
             <div>
               <span className="text-xl font-black tracking-tight text-white">DarkScript</span>
-              <span className="ml-2 text-[10px] font-mono text-violet-500/70 uppercase tracking-widest hidden sm:inline">Time Lapse Documentary</span>
+              <span className="ml-2 text-[10px] font-mono text-violet-500/70 uppercase tracking-widest hidden sm:inline">Copywriting Edition</span>
             </div>
           </div>
           <Link href="/library" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-300 border border-white/10 transition-all hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-950/20">
@@ -669,15 +455,6 @@ function DarkScriptGenerator() {
                       {(selectedChannel.ref_transcripts?.length ?? 0) > 0 && (
                         <span>{selectedChannel.ref_transcripts!.length} transcrições ref.</span>
                       )}
-                      {(selectedChannel.characters?.length ?? 0) > 0 && (
-                        <span className="flex items-center gap-1">
-                          {selectedChannel.characters!.slice(0, 3).map(c =>
-                            c.image_url
-                              ? <img key={c.id} src={c.image_url} alt={c.name} className="w-5 h-5 rounded-full object-cover border border-white/10" />
-                              : <div key={c.id} className="w-5 h-5 rounded-full bg-violet-900/50 border border-violet-500/20 flex items-center justify-center text-[9px] text-violet-300">{c.name[0]}</div>
-                          )}
-                        </span>
-                      )}
                     </div>
                   </div>
                 )}
@@ -690,7 +467,7 @@ function DarkScriptGenerator() {
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Ex: Why Your Tomatoes Fail in Hot Weather..."
+                placeholder="Ex: Como o Algoritmo do YouTube Pune Pequenos Canais..."
                 className="w-full bg-transparent border-b border-white/20 px-0 py-3 text-xl text-white font-medium focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
               />
             </div>
@@ -702,7 +479,7 @@ function DarkScriptGenerator() {
                   type="text"
                   value={niche}
                   onChange={e => setNiche(e.target.value)}
-                  placeholder="Ex: Cultivo tropical time lapse"
+                  placeholder="Ex: YouTube Marketing"
                   className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
                 />
               </div>
@@ -712,7 +489,126 @@ function DarkScriptGenerator() {
                   type="text"
                   value={subniche}
                   onChange={e => setSubniche(e.target.value)}
-                  placeholder="Ex: Cultivo de tomates em vasos pequenos"
+                  placeholder="Ex: Crescimento de canais dark"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <FieldLabel>Público-Alvo</FieldLabel>
+                <input
+                  type="text"
+                  value={publicoAlvo}
+                  onChange={e => setPublicoAlvo(e.target.value)}
+                  placeholder="Ex: Criadores de conteúdo iniciantes"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+              <div>
+                <FieldLabel>Nível de Consciência (1 a 5)</FieldLabel>
+                <div className="relative">
+                  <select
+                    value={nivelConsciencia}
+                    onChange={e => setNivelConsciencia(Number(e.target.value))}
+                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors appearance-none cursor-pointer"
+                  >
+                    <option value={1} className="bg-[#0d1017]">1 - Totalmente Inconsciente</option>
+                    <option value={2} className="bg-[#0d1017]">2 - Consciente do Problema</option>
+                    <option value={3} className="bg-[#0d1017]">3 - Consciente da Solução</option>
+                    <option value={4} className="bg-[#0d1017]">4 - Consciente do Produto</option>
+                    <option value={5} className="bg-[#0d1017]">5 - Totalmente Consciente</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Inimigo Comum do Nicho</FieldLabel>
+                <input
+                  type="text"
+                  value={inimigoComum}
+                  onChange={e => setInimigoComum(e.target.value)}
+                  placeholder="Ex: O algoritmo arbitrário"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <FieldLabel>Emoção Primária Exigida</FieldLabel>
+                <input
+                  type="text"
+                  value={emocaoPrimaria}
+                  onChange={e => setEmocaoPrimaria(e.target.value)}
+                  placeholder="Ex: Medo / Indignação"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+              <div>
+                <FieldLabel>Tom de Voz</FieldLabel>
+                <input
+                  type="text"
+                  value={tomDeVoz}
+                  onChange={e => setTomDeVoz(e.target.value)}
+                  placeholder="Ex: Direto, provocativo e cético"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+              <div>
+                <FieldLabel>Cultura / País Alvo</FieldLabel>
+                <input
+                  type="text"
+                  value={culturaAlvo}
+                  onChange={e => setCulturaAlvo(e.target.value)}
+                  placeholder="Ex: Brasil"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <FieldLabel>Idioma da Narração</FieldLabel>
+                <div className="relative">
+                  <select
+                    value={idiomaNarracao}
+                    onChange={e => setIdiomaNarracao(e.target.value)}
+                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors appearance-none cursor-pointer"
+                  >
+                    <option value="Português" className="bg-[#0d1017]">Português</option>
+                    <option value="Inglês" className="bg-[#0d1017]">Inglês</option>
+                    <option value="Espanhol" className="bg-[#0d1017]">Espanhol</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Palavras por Bloco</FieldLabel>
+                <input
+                  type="number"
+                  value={palavrasPorBloco}
+                  onChange={e => setPalavrasPorBloco(Number(e.target.value))}
+                  placeholder="Ex: 200"
+                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                />
+              </div>
+              <div>
+                <FieldLabel>Quantidade de Blocos</FieldLabel>
+                <input
+                  type="number"
+                  value={quantidadeBlocos}
+                  onChange={e => setQuantidadeBlocos(Number(e.target.value))}
+                  placeholder="Ex: 5"
                   className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
                 />
               </div>
@@ -723,68 +619,48 @@ function DarkScriptGenerator() {
               <textarea
                 value={channelContext}
                 onChange={e => setChannelContext(e.target.value)}
-                rows={4}
-                placeholder="Descreva sua persona, arquétipo do canal e perfil do público. Ex: Canal dark no estilo Attenborough, público 25-45 anos, interesse em autossuficiência e natureza, tom educativo e contemplativo."
-                className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 focus:bg-white/[0.05] transition-colors placeholder-gray-600 resize-y min-h-[100px]"
+                rows={3}
+                placeholder="Descreva sua persona do canal."
+                className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 focus:bg-white/[0.05] transition-colors placeholder-gray-600 resize-y min-h-[80px]"
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row items-end gap-4">
-              <div className="w-full sm:w-auto">
-                <FieldLabel>Tamanho do Roteiro</FieldLabel>
-                <div className="relative">
-                  <select
-                    value={targetWords}
-                    onChange={e => setTargetWords(Number(e.target.value))}
-                    className="w-full sm:w-auto h-11 pl-4 pr-10 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-gray-300 focus:outline-none focus:border-violet-500/60 transition-colors cursor-pointer appearance-none"
-                  >
-                    {WORD_OPTIONS.map(opt => (
-                      <option key={opt.words} value={opt.words} className="bg-[#0d1017] text-gray-200">
-                        {opt.label} ({opt.sublabel})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
+            <div className="flex flex-col sm:flex-row items-end justify-between gap-4">
               <div className="hidden sm:flex items-end pb-0.5 text-[11px] text-gray-600 font-mono gap-1">
-                <span>{getScenesCount(targetWords)} cenas</span>
+                <span>{quantidadeBlocos} blocos</span>
                 <span>·</span>
-                <span>~{Math.round(targetWords / getScenesCount(targetWords))} palavras/cena</span>
+                <span>~{totalWords} palavras no total</span>
               </div>
 
-              <button
-                onClick={loadFromLibrary}
-                className="h-11 px-4 rounded-xl bg-white/5 text-gray-400 text-sm font-medium border border-white/10 transition-all hover:bg-white/10 hover:text-white hover:border-white/20 flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                Carregar
-              </button>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                  onClick={loadFromLibrary}
+                  className="h-11 px-4 rounded-xl bg-white/5 text-gray-400 text-sm font-medium border border-white/10 transition-all hover:bg-white/10 hover:text-white hover:border-white/20 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  Carregar
+                </button>
 
-              <button
-                onClick={handleGenerate}
-                disabled={!title.trim() || !niche.trim() || isGenerating}
-                className="h-11 w-full sm:w-auto px-8 rounded-xl bg-violet-600 text-white text-sm font-bold transition-all hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:shadow-[0_0_30px_rgba(139,92,246,0.35)]"
-              >
-                {isGenerating ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Gerando...
-                  </>
-                ) : (
-                  'Gerar Roteiro'
-                )}
-              </button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={!title.trim() || !niche.trim() || isGenerating}
+                  className="h-11 w-full sm:w-auto px-8 rounded-xl bg-violet-600 text-white text-sm font-bold transition-all hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(139,92,246,0.15)] hover:shadow-[0_0_30px_rgba(139,92,246,0.35)]"
+                >
+                  {isGenerating ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Gerando...
+                    </>
+                  ) : (
+                    'Gerar Roteiro'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -825,11 +701,11 @@ function DarkScriptGenerator() {
         {script && !isGenerating && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-violet-950/30 to-transparent p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-white">{script.titulo}</h2>
                   <p className="text-xs text-gray-500 mt-1">
-                    {script.nicho} · ~{Math.round((script.total_words || 3000) / 150)} min
+                    {script.nicho} · {script.cenas.length} blocos · ~{totalWords} palavras
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -865,45 +741,26 @@ function DarkScriptGenerator() {
                       </>
                     )}
                   </button>
-                  <button
-                    onClick={handleSendToFlow}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Enviar para Flow
-                  </button>
                 </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
-                    filter === 'all'
-                      ? 'bg-white/10 border-white/30 text-white'
-                      : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-                  }`}
-                >
-                  Tudo
-                </button>
-                {BLOCK_ORDER.map(bt => (
-                  <button
-                    key={bt}
-                    onClick={() => setFilter(bt)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${
-                      filter === bt
-                        ? `${BLOCK_CONFIG[bt].badgeClass.replace('/15 ', '/20 ').replace('text-', 'text-').replace('border-', 'border-')} border-current`
-                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
-                    }`}
-                  >
-                    {BLOCK_CONFIG[bt].filterLabel}
-                  </button>
-                ))}
               </div>
             </div>
 
+            {/* Strategic Analysis Card */}
+            {script.analise_estrategica && (
+              <div className="bg-violet-950/20 border border-violet-500/20 rounded-2xl p-6">
+                <h3 className="text-base font-bold text-violet-300 flex items-center gap-2 mb-4">
+                  <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Análise Estratégica
+                </h3>
+                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {script.analise_estrategica}
+                </p>
+              </div>
+            )}
+
+            {/* Script Blocks */}
             {script.cenas.map((scene, index) => (
               <SceneCard
                 key={scene.id}
@@ -911,13 +768,43 @@ function DarkScriptGenerator() {
                 index={index}
                 copied={copied}
                 onCopy={handleCopy}
-                visibleBlocks={filter}
               />
             ))}
 
+            {/* Thumbnail Prompt Card */}
+            {script.thumbnail_prompt && (
+              <div className="bg-orange-950/20 border border-orange-500/20 rounded-2xl p-6">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <h3 className="text-base font-bold text-orange-300 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Prompt de Thumbnail
+                  </h3>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(script.thumbnail_prompt!);
+                      setCopied({ sceneId: 9999, block: 'thumbnail' });
+                      setTimeout(() => setCopied(null), 2000);
+                    }}
+                    className={`flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                      copied?.sceneId === 9999
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                        : 'border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20 hover:bg-white/10'
+                    }`}
+                  >
+                    {copied?.sceneId === 9999 ? 'Copiado!' : 'Copiar Prompt'}
+                  </button>
+                </div>
+                <p className="text-sm text-gray-300 font-mono bg-black/30 p-4 rounded-xl border border-white/5 leading-relaxed whitespace-pre-wrap">
+                  {script.thumbnail_prompt}
+                </p>
+              </div>
+            )}
+
             <div className="text-center py-4 border-t border-white/5">
               <p className="text-xs text-gray-600">
-                Roteiro gerado · {totalClips} clips de 8s · {script.cenas.length} cenas · ~{Math.round((script.total_words || 3000) / 150)} min de footage · Idioma: {script.idioma || 'Português'}
+                Roteiro gerado · {script.cenas.length} blocos · ~{totalWords} palavras no total
               </p>
             </div>
           </div>
@@ -974,7 +861,7 @@ function DarkScriptGenerator() {
                             </p>
                           </div>
                           <svg className="w-4 h-4 text-gray-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7-7" />
                           </svg>
                         </div>
                       </button>

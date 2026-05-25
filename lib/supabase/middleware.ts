@@ -32,7 +32,25 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Rotas públicas que não precisam de autenticação
-  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/debug');
+  // Extensão Chrome DarkClip — liberar CORS preflight e requisições autenticadas
+  const isExtension   = request.headers.get('x-extension-token') === 'darkclip-local'
+                     || request.nextUrl.searchParams.get('_t') === 'darkclip-local';
+  const isCORSPreflight = request.method === 'OPTIONS';
+
+  // Responder preflight imediatamente (sem verificar auth)
+  if (isCORSPreflight) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Extension-Token',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+
+  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/debug') || isExtension;
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
   if (!user && !isPublicRoute) {

@@ -292,7 +292,8 @@ async function searchUnsplash(
 }
 
 async function searchYouTubeCC(
-  query: string
+  query: string,
+  orientation: string
 ): Promise<{ items: MediaItem[]; error?: string }> {
   // Chave dedicada ao DarkMídia — separada da chave principal do DarkMine
   const key = (process.env.YOUTUBE_API_KEY_MEDIA || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY)?.trim();
@@ -303,9 +304,15 @@ async function searchYouTubeCC(
     'Origin': 'https://www.darkmine.fun',
   };
 
+  // Quando orientação é paisagem, excluir Shorts da query e filtrar vídeos curtos
+  const landscapeOnly = orientation === 'landscape';
+  const finalQuery = landscapeOnly ? `${query} -shorts -"#shorts"` : query;
+  // videoDuration=medium (4–20min) exclui Shorts (<1min) de forma confiável
+  const durationParam = landscapeOnly ? '&videoDuration=medium' : '';
+
   try {
     const searchRes = await safeFetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoLicense=creativeCommon&maxResults=20&key=${key}`,
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(finalQuery)}&type=video&videoLicense=creativeCommon&maxResults=25${durationParam}&key=${key}`,
       { headers: ytHeaders }
     );
     if (!searchRes.ok) {
@@ -331,11 +338,12 @@ async function searchYouTubeCC(
     const detailMap: Record<string, any> = {};
     for (const d of detailData.items || []) detailMap[d.id] = d;
 
-    const items: MediaItem[] = ytItems
+    let items: MediaItem[] = ytItems
       .filter((i: any) => i.id?.videoId)
       .map((i: any): MediaItem => {
         const vid = i.id.videoId;
         const iso = detailMap[vid]?.contentDetails?.duration || 'PT0S';
+        const durationSec = parseISODuration(iso);
         const thumb =
           i.snippet?.thumbnails?.high?.url ||
           i.snippet?.thumbnails?.medium?.url ||
@@ -351,7 +359,7 @@ async function searchYouTubeCC(
           downloadUrl: `https://www.youtube.com/watch?v=${vid}`,
           width: 1920,
           height: 1080,
-          duration: parseISODuration(iso),
+          duration: durationSec,
           author: i.snippet?.channelTitle || 'YouTube',
           license: 'Creative Commons (CC BY)',
           sourceUrl: `https://www.youtube.com/watch?v=${vid}`,
@@ -359,7 +367,13 @@ async function searchYouTubeCC(
           youtubeId: vid,
         };
       });
-    return { items };
+
+    // Filtro extra: remover vídeos com duração < 60s (Shorts passam pelo filtro de query às vezes)
+    if (landscapeOnly) {
+      items = items.filter((i) => (i.duration ?? 0) >= 60);
+    }
+
+    return { items: items.slice(0, 20) };
   } catch (err: any) {
     const msg = `YouTube CC: ${err?.message || 'erro desconhecido'}`;
     console.error('[media/search] ' + msg);
@@ -422,8 +436,10 @@ async function searchArchive(
 }
 
 function filterByQuality(items: MediaItem[], quality: string): MediaItem[] {
-  if (quality === '4k') return items.filter((i) => i.quality === '4K');
-  if (quality === 'hd') return items.filter((i) => i.quality === '4K' || i.quality === 'HD');
+  // YouTube CC e Archive.org não têm qualidade determinada na busca — sempre incluir
+  const exempt = (i: MediaItem) => i.source === 'youtube_cc' || i.source === 'archive';
+  if (quality === '4k') return items.filter((i) => exempt(i) || i.quality === '4K');
+  if (quality === 'hd') return items.filter((i) => exempt(i) || i.quality === '4K' || i.quality === 'HD');
   return items;
 }
 
@@ -470,7 +486,7 @@ export async function POST(req: NextRequest) {
     if (sources.includes('unsplash') && (type === 'photo' || type === 'both'))
       tasks.push({ label: 'unsplash', promise: searchUnsplash(query, page) });
     if (sources.includes('youtube_cc') && (type === 'video' || type === 'both'))
-      tasks.push({ label: 'youtube_cc', promise: searchYouTubeCC(query) });
+      tasks.push({ label: 'youtube_cc', promise: searchYouTubeCC(query, orientation) });
     if (sources.includes('archive') && (type === 'video' || type === 'both'))
       tasks.push({ label: 'archive', promise: searchArchive(query, page) });
 

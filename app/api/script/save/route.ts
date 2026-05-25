@@ -11,7 +11,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { titulo, nicho, subnicho, contexto, wordcount, conteudo, conteudo_raw, id } = body;
+    const {
+      titulo,
+      nicho,
+      subnicho,
+      contexto,
+      wordcount,
+      conteudo,
+      conteudo_raw,
+      id,
+      publico_alvo,
+      nivel_consciencia,
+      inimigo_comum,
+      emocao_primaria,
+      tom_de_voz,
+      idioma_narracao,
+      cultura_alvo,
+      palavras_por_bloco,
+      quantidade_blocos,
+    } = body;
 
     if (!titulo) {
       return NextResponse.json(
@@ -20,15 +38,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Bundling new parameters into conteudo JSON as fallback and backwards compatibility
+    const extendedConteudo = {
+      ...(conteudo || {}),
+      publico_alvo: publico_alvo || '',
+      nivel_consciencia: nivel_consciencia !== undefined ? Number(nivel_consciencia) : 3,
+      inimigo_comum: inimigo_comum || '',
+      emocao_primaria: emocao_primaria || '',
+      tom_de_voz: tom_de_voz || '',
+      idioma_narracao: idioma_narracao || 'Português',
+      cultura_alvo: cultura_alvo || 'Brasil',
+      palavras_por_bloco: palavras_por_bloco !== undefined ? Number(palavras_por_bloco) : 200,
+      quantidade_blocos: quantidade_blocos !== undefined ? Number(quantidade_blocos) : 5,
+    };
+
     const scriptData = {
       titulo,
       nicho: nicho || '',
       subnicho: subnicho || '',
       contexto: contexto || '',
       wordcount: wordcount || 3000,
-      conteudo: conteudo || {},
+      conteudo: extendedConteudo,
       conteudo_raw: conteudo_raw || '',
       atualizado_em: new Date().toISOString(),
+      // Write to new columns directly (will succeed if migration is executed)
+      publico_alvo: publico_alvo || '',
+      nivel_consciencia: nivel_consciencia !== undefined ? Number(nivel_consciencia) : 3,
+      inimigo_comum: inimigo_comum || '',
+      emocao_primaria: emocao_primaria || '',
+      tom_de_voz: tom_de_voz || '',
+      idioma_narracao: idioma_narracao || 'Português',
+      cultura_alvo: cultura_alvo || 'Brasil',
+      palavras_por_bloco: palavras_por_bloco !== undefined ? Number(palavras_por_bloco) : 200,
+      quantidade_blocos: quantidade_blocos !== undefined ? Number(quantidade_blocos) : 5,
     };
 
     let result;
@@ -42,10 +84,24 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('Update error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Update error, attempting fallback without new columns...', error);
+        // Fallback: If new columns do not exist in the table yet, remove them and save only to JSON
+        const { publico_alvo, nivel_consciencia, inimigo_comum, emocao_primaria, tom_de_voz, idioma_narracao, cultura_alvo, palavras_por_bloco, quantidade_blocos, ...fallbackData } = scriptData;
+        const { data: fbData, error: fbError } = await supabase
+          .from('darkmine_scripts')
+          .update(fallbackData)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (fbError) {
+          console.error('Fallback update error:', fbError);
+          return NextResponse.json({ error: fbError.message }, { status: 500 });
+        }
+        result = fbData;
+      } else {
+        result = data;
       }
-      result = data;
     } else {
       const { data, error } = await supabase
         .from('darkmine_scripts')
@@ -57,10 +113,26 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('Insert error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Insert error, attempting fallback without new columns...', error);
+        // Fallback: If new columns do not exist in the table yet, remove them and save only to JSON
+        const { publico_alvo, nivel_consciencia, inimigo_comum, emocao_primaria, tom_de_voz, idioma_narracao, cultura_alvo, palavras_por_bloco, quantidade_blocos, ...fallbackData } = scriptData;
+        const { data: fbData, error: fbError } = await supabase
+          .from('darkmine_scripts')
+          .insert({
+            ...fallbackData,
+            criado_em: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (fbError) {
+          console.error('Fallback insert error:', fbError);
+          return NextResponse.json({ error: fbError.message }, { status: 500 });
+        }
+        result = fbData;
+      } else {
+        result = data;
       }
-      result = data;
     }
 
     console.log('Script salvo:', result.id);

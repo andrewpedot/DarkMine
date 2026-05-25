@@ -36,10 +36,10 @@ const WORD_OPTIONS = [
   { words: 4500, label: '4500 palavras', sublabel: '~30 min' },
   { words: 6000, label: '6000 palavras', sublabel: '~40 min' },
   { words: 7500, label: '7500 palavras', sublabel: '~50 min' },
-  { words: 9000, label: '9000 palavras', sublabel: '~1h' },
-  { words: 10500, label: '10500 palavras', sublabel: '~1h 10m' },
-  { words: 12000, label: '12000 palavras', sublabel: '~1h 20m' },
-  { words: 13500, label: '13500 palavras', sublabel: '~1h 30m (1 hora e meia)' },
+  { words: 9000, label: '9000 palavras', sublabel: '~60 min' },
+  { words: 10500, label: '10500 palavras', sublabel: '~70 min' },
+  { words: 12000, label: '12000 palavras', sublabel: '~80 min' },
+  { words: 13500, label: '13500 palavras', sublabel: '~90 min' },
 ] as const;
 
 const BLOCK_CONFIG = {

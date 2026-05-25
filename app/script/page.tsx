@@ -23,6 +23,19 @@ interface ScriptData {
   cenas: SceneData[];
 }
 
+const WORD_OPTIONS = [
+  { words: 1500, label: '1500 palavras', sublabel: '~10 min' },
+  { words: 1750, label: '1750 palavras', sublabel: '~11.7 min' },
+  { words: 2000, label: '2000 palavras', sublabel: '~13.3 min' },
+  { words: 2250, label: '2250 palavras', sublabel: '~15 min' },
+  { words: 2500, label: '2500 palavras', sublabel: '~16.7 min' },
+  { words: 2750, label: '2750 palavras', sublabel: '~18.3 min' },
+  { words: 3000, label: '3000 palavras', sublabel: '~20 min' },
+  { words: 3500, label: '3500 palavras', sublabel: '~23.3 min' },
+  { words: 4000, label: '4000 palavras', sublabel: '~26.7 min' },
+  { words: 4500, label: '4500 palavras', sublabel: '~30 min' },
+] as const;
+
 const BLOCK_CONFIG = {
   narracao: {
     label: 'Narração',
@@ -149,22 +162,15 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
 function DarkScriptGenerator() {
   const router = useRouter();
   
-  // Base details
+  // Base details & auto-deductive copywriting parameters
   const [title, setTitle] = useState('');
   const [niche, setNiche] = useState('');
   const [subniche, setSubniche] = useState('');
   const [channelContext, setChannelContext] = useState('');
-  
-  // Copywriting specific parameters
   const [publicoAlvo, setPublicoAlvo] = useState('');
-  const [nivelConsciencia, setNivelConsciencia] = useState(3);
-  const [inimigoComum, setInimigoComum] = useState('');
-  const [emocaoPrimaria, setEmocaoPrimaria] = useState('');
-  const [tomDeVoz, setTomDeVoz] = useState('');
   const [idiomaNarracao, setIdiomaNarracao] = useState('Português');
   const [culturaAlvo, setCulturaAlvo] = useState('Brasil');
-  const [palavrasPorBloco, setPalavrasPorBloco] = useState(200);
-  const [quantidadeBlocos, setQuantidadeBlocos] = useState(5);
+  const [quantidadeTotalPalavras, setQuantidadeTotalPalavras] = useState(3000);
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState('');
@@ -228,19 +234,13 @@ function DarkScriptGenerator() {
           nicho: script.nicho,
           subnicho: subniche,
           contexto: channelContext,
-          wordcount: palavrasPorBloco * quantidadeBlocos,
+          wordcount: quantidadeTotalPalavras,
           conteudo: script,
           conteudo_raw: rawScript,
           // metadata fields
           publico_alvo: publicoAlvo,
-          nivel_consciencia: nivelConsciencia,
-          inimigo_comum: inimigoComum,
-          emocao_primaria: emocaoPrimaria,
-          tom_de_voz: tomDeVoz,
           idioma_narracao: idiomaNarracao,
           cultura_alvo: culturaAlvo,
-          palavras_por_bloco: palavrasPorBloco,
-          quantidade_blocos: quantidadeBlocos,
         }),
       });
       const data = await response.json();
@@ -283,17 +283,13 @@ function DarkScriptGenerator() {
       setTitle(savedScript.conteudo.titulo || savedScript.titulo || '');
       setNiche(savedScript.conteudo.nicho || savedScript.nicho || '');
       setSubniche(savedScript.conteudo.subnicho || savedScript.subnicho || '');
+      setChannelContext(savedScript.conteudo.contexto || savedScript.contexto || '');
+      setQuantidadeTotalPalavras(savedScript.wordcount || 3000);
       
       const content = savedScript.conteudo;
       setPublicoAlvo(content.publico_alvo || savedScript.publico_alvo || '');
-      setNivelConsciencia(content.nivel_consciencia || savedScript.nivel_consciencia || 3);
-      setInimigoComum(content.inimigo_comum || savedScript.inimigo_comum || '');
-      setEmocaoPrimaria(content.emocao_primaria || savedScript.emocao_primaria || '');
-      setTomDeVoz(content.tom_de_voz || savedScript.tom_de_voz || '');
       setIdiomaNarracao(content.idioma_narracao || savedScript.idioma_narracao || 'Português');
       setCulturaAlvo(content.cultura_alvo || savedScript.cultura_alvo || 'Brasil');
-      setPalavrasPorBloco(content.palavras_por_bloco || savedScript.palavras_por_bloco || 200);
-      setQuantidadeBlocos(content.quantidade_blocos || savedScript.quantidade_blocos || 5);
       
       setGenerationStage('done');
 
@@ -325,14 +321,9 @@ function DarkScriptGenerator() {
           subniche: subniche.trim() || undefined,
           context: channelContext.trim() || undefined,
           publico_alvo: publicoAlvo.trim() || undefined,
-          nivel_consciencia: Number(nivelConsciencia),
-          inimigo_comum: inimigoComum.trim() || undefined,
-          emocao_primaria: emocaoPrimaria.trim() || undefined,
-          tom_de_voz: tomDeVoz.trim() || undefined,
           idioma_narracao: idiomaNarracao || 'Português',
           cultura_alvo: culturaAlvo.trim() || undefined,
-          palavras_por_bloco: Number(palavrasPorBloco),
-          quantidade_blocos: Number(quantidadeBlocos),
+          wordCount: Number(quantidadeTotalPalavras),
           ref_transcripts: selectedChannel?.ref_transcripts?.length ? selectedChannel.ref_transcripts : undefined,
           ref_titles: selectedChannel?.ref_titles?.length ? selectedChannel.ref_titles : undefined,
         }),
@@ -395,8 +386,6 @@ function DarkScriptGenerator() {
     }
   };
 
-  const totalWords = palavrasPorBloco * quantidadeBlocos;
-
   return (
     <div className="min-h-screen bg-[#080b12] relative overflow-x-hidden text-gray-200">
       <div className="fixed top-0 left-1/4 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%)', filter: 'blur(40px)' }} />
@@ -411,7 +400,7 @@ function DarkScriptGenerator() {
             </div>
             <div>
               <span className="text-xl font-black tracking-tight text-white">DarkScript</span>
-              <span className="ml-2 text-[10px] font-mono text-violet-500/70 uppercase tracking-widest hidden sm:inline">Copywriting Edition</span>
+              <span className="ml-2 text-[10px] font-mono text-violet-500/70 uppercase tracking-widest hidden sm:inline">Auto-Deductive Copy</span>
             </div>
           </div>
           <Link href="/library" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-300 border border-white/10 transition-all hover:border-violet-500/40 hover:text-violet-300 hover:bg-violet-950/20">
@@ -472,6 +461,17 @@ function DarkScriptGenerator() {
               />
             </div>
 
+            <div>
+              <FieldLabel optional>Contexto do Canal / Persona</FieldLabel>
+              <textarea
+                value={channelContext}
+                onChange={e => setChannelContext(e.target.value)}
+                rows={3}
+                placeholder="Descreva a persona, tom de voz ou comportamento geral do seu canal."
+                className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 focus:bg-white/[0.05] transition-colors placeholder-gray-600 resize-y min-h-[80px]"
+              />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <FieldLabel>Nicho</FieldLabel>
@@ -507,73 +507,6 @@ function DarkScriptGenerator() {
                 />
               </div>
               <div>
-                <FieldLabel>Nível de Consciência (1 a 5)</FieldLabel>
-                <div className="relative">
-                  <select
-                    value={nivelConsciencia}
-                    onChange={e => setNivelConsciencia(Number(e.target.value))}
-                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value={1} className="bg-[#0d1017]">1 - Totalmente Inconsciente</option>
-                    <option value={2} className="bg-[#0d1017]">2 - Consciente do Problema</option>
-                    <option value={3} className="bg-[#0d1017]">3 - Consciente da Solução</option>
-                    <option value={4} className="bg-[#0d1017]">4 - Consciente do Produto</option>
-                    <option value={5} className="bg-[#0d1017]">5 - Totalmente Consciente</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <FieldLabel>Inimigo Comum do Nicho</FieldLabel>
-                <input
-                  type="text"
-                  value={inimigoComum}
-                  onChange={e => setInimigoComum(e.target.value)}
-                  placeholder="Ex: O algoritmo arbitrário"
-                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <FieldLabel>Emoção Primária Exigida</FieldLabel>
-                <input
-                  type="text"
-                  value={emocaoPrimaria}
-                  onChange={e => setEmocaoPrimaria(e.target.value)}
-                  placeholder="Ex: Medo / Indignação"
-                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
-                />
-              </div>
-              <div>
-                <FieldLabel>Tom de Voz</FieldLabel>
-                <input
-                  type="text"
-                  value={tomDeVoz}
-                  onChange={e => setTomDeVoz(e.target.value)}
-                  placeholder="Ex: Direto, provocativo e cético"
-                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
-                />
-              </div>
-              <div>
-                <FieldLabel>Cultura / País Alvo</FieldLabel>
-                <input
-                  type="text"
-                  value={culturaAlvo}
-                  onChange={e => setCulturaAlvo(e.target.value)}
-                  placeholder="Ex: Brasil"
-                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
                 <FieldLabel>Idioma da Narração</FieldLabel>
                 <div className="relative">
                   <select
@@ -593,43 +526,38 @@ function DarkScriptGenerator() {
                 </div>
               </div>
               <div>
-                <FieldLabel>Palavras por Bloco</FieldLabel>
+                <FieldLabel>Cultura / País Alvo</FieldLabel>
                 <input
-                  type="number"
-                  value={palavrasPorBloco}
-                  onChange={e => setPalavrasPorBloco(Number(e.target.value))}
-                  placeholder="Ex: 200"
+                  type="text"
+                  value={culturaAlvo}
+                  onChange={e => setCulturaAlvo(e.target.value)}
+                  placeholder="Ex: Brasil"
                   className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
                 />
               </div>
-              <div>
-                <FieldLabel>Quantidade de Blocos</FieldLabel>
-                <input
-                  type="number"
-                  value={quantidadeBlocos}
-                  onChange={e => setQuantidadeBlocos(Number(e.target.value))}
-                  placeholder="Ex: 5"
-                  className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
-                />
-              </div>
-            </div>
-
-            <div>
-              <FieldLabel optional>Contexto do Canal</FieldLabel>
-              <textarea
-                value={channelContext}
-                onChange={e => setChannelContext(e.target.value)}
-                rows={3}
-                placeholder="Descreva sua persona do canal."
-                className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 focus:bg-white/[0.05] transition-colors placeholder-gray-600 resize-y min-h-[80px]"
-              />
             </div>
 
             <div className="flex flex-col sm:flex-row items-end justify-between gap-4">
-              <div className="hidden sm:flex items-end pb-0.5 text-[11px] text-gray-600 font-mono gap-1">
-                <span>{quantidadeBlocos} blocos</span>
-                <span>·</span>
-                <span>~{totalWords} palavras no total</span>
+              <div className="w-full sm:w-auto">
+                <FieldLabel>Tamanho do Roteiro</FieldLabel>
+                <div className="relative">
+                  <select
+                    value={quantidadeTotalPalavras}
+                    onChange={e => setQuantidadeTotalPalavras(Number(e.target.value))}
+                    className="w-full sm:w-auto h-11 pl-4 pr-10 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-gray-300 focus:outline-none focus:border-violet-500/60 transition-colors cursor-pointer appearance-none"
+                  >
+                    {WORD_OPTIONS.map(opt => (
+                      <option key={opt.words} value={opt.words} className="bg-[#0d1017] text-gray-200">
+                        {opt.label} ({opt.sublabel})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 w-full sm:w-auto">
@@ -705,7 +633,7 @@ function DarkScriptGenerator() {
                 <div>
                   <h2 className="text-lg font-bold text-white">{script.titulo}</h2>
                   <p className="text-xs text-gray-500 mt-1">
-                    {script.nicho} · {script.cenas.length} blocos · ~{totalWords} palavras
+                    {script.nicho} · {script.cenas.length} blocos · ~{quantidadeTotalPalavras} palavras
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -804,7 +732,7 @@ function DarkScriptGenerator() {
 
             <div className="text-center py-4 border-t border-white/5">
               <p className="text-xs text-gray-600">
-                Roteiro gerado · {script.cenas.length} blocos · ~{totalWords} palavras no total
+                Roteiro gerado · {script.cenas.length} blocos · ~{quantidadeTotalPalavras} palavras no total
               </p>
             </div>
           </div>

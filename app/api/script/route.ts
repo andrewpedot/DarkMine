@@ -8,7 +8,7 @@ function detectLanguage(text: string): string {
   return ptMatches >= enMatches ? 'pt' : 'en';
 }
 
-const SYSTEM_PROMPT = `Você é um Estrategista de YouTube de elite e um Roteirista Master de Copywriting Direto, especialista em criar roteiros virais e persuasivos. Sua habilidade única é clonar o ritmo de conteúdos de sucesso, garantir precisão lógica (sem inventar falsos oceanos azuis) e aplicar engenharia de neuromarketing focada puramente na força das palavras.`;
+const SYSTEM_PROMPT = `Você é um Estrategista de YouTube de elite e um Roteirista Master, especialista em criar roteiros virais e de alta retenção. Sua habilidade única é clonar o ritmo de conteúdos de sucesso, garantir precisão lógica e aplicar engenharia de neuromarketing (focada puramente na força das palavras) de forma autônoma para cada nicho.`;
 
 function buildRefTranscriptsBlock(refTranscripts?: { title: string; transcript: string }[]): string {
   if (!refTranscripts || refTranscripts.length === 0) return '';
@@ -16,92 +16,86 @@ function buildRefTranscriptsBlock(refTranscripts?: { title: string; transcript: 
 }
 
 function buildPrompt({
+  contexto_canal,
   nicho,
   subnicho,
   publico_alvo,
-  nivel_consciencia,
-  inimigo_comum,
-  emocao_primaria,
-  tom_de_voz,
   titulo_video,
   idioma_narracao,
   cultura_alvo,
-  palavras_por_bloco,
-  quantidade_blocos,
+  quantidade_total_palavras,
   ref_transcripts,
 }: {
+  contexto_canal: string;
   nicho: string;
   subnicho: string;
   publico_alvo: string;
-  nivel_consciencia: number;
-  inimigo_comum: string;
-  emocao_primaria: string;
-  tom_de_voz: string;
   titulo_video: string;
   idioma_narracao: string;
   cultura_alvo: string;
-  palavras_por_bloco: number;
-  quantidade_blocos: number;
+  quantidade_total_palavras: number;
   ref_transcripts?: { title: string; transcript: string }[];
 }) {
   const refTranscriptsBlock = buildRefTranscriptsBlock(ref_transcripts);
 
   return `## 1. DADOS DE ENTRADA
+- Canal / Contexto da Persona: ${contexto_canal}
 - Nicho: ${nicho}
 - Subnicho: ${subnicho || 'Não especificado'}
-- Público-Alvo: ${publico_alvo || 'Não especificado'}
-- Nível de Consciência (1 a 5): ${nivel_consciencia}
-- Inimigo Comum do Nicho: ${inimigo_comum}
-- Emoção Primária Exigida: ${emocao_primaria}
-- Tom de Voz: ${tom_de_voz}
+- Público-Alvo: ${publico_alvo}
 - Título do Vídeo: ${titulo_video}
 - Idioma da Narração: ${idioma_narracao}
 - País/Cultura Alvo: ${cultura_alvo}
-- Meta de Palavras por Bloco: ${palavras_por_bloco}
-- Quantidade Total de Blocos: ${quantidade_blocos}
+- Tamanho Total do Roteiro: ~${quantidade_total_palavras} palavras
 
 ## 2. TRANSCRIÇÕES DE REFERÊNCIA (O RITMO)
 ${refTranscriptsBlock || 'Nenhuma transcrição de referência fornecida.'}
-**Regra de Clonagem:** Mimetize estritamente o RITMO, a estrutura de ganchos e a cadência destas referências. Extraia apenas a engenharia da atenção, não o conteúdo.
+**Regra de Clonagem:** Mimetize estritamente o RITMO, a estrutura de ganchos e a cadência destas referências. Extraia apenas a engenharia da atenção, nunca o conteúdo exato.
 
 ## 3. LOCALIZAÇÃO CULTURAL
 Pense e escreva DIRETAMENTE como um nativo de: ${cultura_alvo}.
 - Use expressões e nomenclaturas oficiais consagradas neste país e idioma.
 - A narrativa deve soar 100% orgânica para as dores e tradições locais.
 
-## 4. ENGENHARIA DE ROTEIRO E NEUROMARKETING
-1. ATAQUE O CÉREBRO LÍMBICO: O início deve ser puramente emocional. Não use estatísticas complexas de cara. Faça a audiência sentir ${emocao_primaria} intensamente. A lógica entra depois para justificar.
-2. O GANCHO DE 5 SEGUNDOS E O INIMIGO COMUM: Nos primeiros 10 segundos, valide a promessa do ${titulo_video} unindo-se ao público contra o ${inimigo_comum}. Gere empatia imediata. Zero enrolação.
-3. O MECANISMO ÚNICO (OPEN LOOP): A solução não pode ser "mais do mesmo". Estruture a revelação central como um caminho novo. Abra esse mistério no Bloco 1 e entregue a resposta no último bloco.
-4. MICRO-GANCHOS: A ÚLTIMA frase de CADA bloco deve ser um cliffhanger, forçando o espectador a querer ouvir o próximo bloco.
-5. IMAGENS MENTAIS: Como não haverá direcionamento visual, suas palavras devem ser altamente descritivas. Pinte o cenário, a dor e a situação na mente do espectador.
+## 4. ENGENHARIA DE ROTEIRO E PSICOLOGIA (AUTO-DEDUÇÃO)
+Como roteirista experiente, você deve deduzir a psicologia do público com base no nicho e aplicar as seguintes regras em todo o texto:
+1. ATAQUE O CÉREBRO LÍMBICO: Deduza qual é a emoção primária deste público (Medo de perder algo ou Ganância/Desejo de alcançar algo). O início do roteiro deve ser puramente focado nessa emoção. A lógica entra apenas depois para justificar.
+2. GANCHO DE 5 SEGUNDOS E O INIMIGO COMUM: Deduza qual é o "inimigo comum" do ${publico_alvo} (ex: o algoritmo, a indústria, a falta de tempo). Nos primeiros 10 segundos, valide o ${titulo_video} unindo-se ao público contra esse inimigo. Zero enrolação.
+3. O MECANISMO ÚNICO (OPEN LOOP): A solução não pode ser "mais do mesmo". Estruture a revelação central como um caminho novo ou uma perspectiva ignorada. Abra esse mistério no Bloco 1 e entregue a resposta no último bloco.
+4. MICRO-GANCHOS: Quebre o roteiro em blocos lógicos. A ÚLTIMA frase de CADA bloco deve ser um cliffhanger (micro-gancho), forçando o espectador a querer ouvir a próxima parte.
+5. IMAGENS MENTAIS E RITMO: Como não haverá direcionamento visual, suas palavras devem ser altamente descritivas. Pinte o cenário na mente do espectador.
+6. CONTROLE DE TAMANHO: O seu roteiro FINAL (a soma de todas as narrações) deve ter rigorosamente a média de ~${quantidade_total_palavras} palavras. Distribua esse volume de forma inteligente entre a introdução, desenvolvimento e conclusão.
 
-## 5. ANÁLISE PRÉVIA E BLINDAGEM LÓGICA
-Gere o bloco [ANÁLISE ESTRATÉGICA]. Responda em 5 frases curtas (em Português):
-1. Auditoria Lógica: A premissa central é factualmente precisa e logicamente sólida para o ${subnicho || nicho}? (Elimine falhas lógicas e oportunidades irreais).
-2. Adequação: Como a linguagem atingirá cirurgicamente o Nível de Consciência: ${nivel_consciencia}?
-3. Emoção: Como o roteiro sustentará EXCLUSIVAMENTE a emoção de ${emocao_primaria}?
-4. Conexão: Qual nuance de ${cultura_alvo} atacará o ${inimigo_comum}?
-5. Transição: Qual é o Micro-Gancho exato entre o Bloco 1 e o Bloco 2?
+## 5. ANÁLISE PRÉVIA (CHAIN OF THOUGHT)
+Gere o bloco [ANÁLISE ESTRATÉGICA]. Responda em 4 frases curtas (em Português):
+1. Qual é a emoção primária (Medo ou Ganância) e o inimigo comum implícitos neste nicho?
+2. Qual será o Mecanismo Único (a revelação/ângulo novo) deste vídeo?
+3. A premissa central é factualmente precisa e logicamente sólida para o ${subnicho || nicho}? (Elimine falhas lógicas agora).
+4. Como a ${cultura_alvo} ditará as expressões e a empatia do texto?
 
 ## 6. FORMATO DE SAÍDA ESTRITO
-Não adicione textos explicativos fora destes blocos.
+Não adicione textos explicativos fora destes blocos. Divida o roteiro em quantos blocos forem necessários para atingir a meta de palavras de forma fluida.
 
 [ANÁLISE ESTRATÉGICA]
-(Sua análise de 5 pontos)
+(Sua análise de 4 pontos)
 
 ---
-[BLOCO: 1 | Título do Bloco]
-
+[BLOCO: 1 | Introdução e Gancho]
 [NARRAÇÃO]
-(Texto nativo em ${idioma_narracao}. Frase final atua como Micro-Gancho. Tamanho rigoroso: ~${palavras_por_bloco} palavras.)
+(Texto nativo em ${idioma_narracao}. Frase final atua como Micro-Gancho.)
+
 ---
-(Repita o [BLOCO] até atingir a ${quantidade_blocos})
+[BLOCO: 2 | Título do Bloco]
+[NARRAÇÃO]
+(Texto nativo em ${idioma_narracao}. Continuação fluida.)
+
+---
+(Continue gerando blocos até que a soma total da narração atinja aproximadamente ${quantidade_total_palavras} palavras)
 
 [THUMBNAIL_PROMPT]
 (Gere um prompt em Inglês para a miniatura seguindo estes padrões validados de YouTube:
 - Contraste extremo (Cores complementares ou objeto saturado em fundo escuro).
-- Foco em transmitir a ${emocao_primaria} (Medo extremo ou Ganância/Desejo).
+- Foco em transmitir a emoção primária deduzida.
 - Elemento principal grande e isolado (Ocupando 40% da tela).
 - Sugestão de texto na imagem: Máximo de 3 palavras de alto impacto, fáceis de ler no celular, em fonte grossa.
 - Gatilho visual: Um detalhe incongruente ou uma seta/círculo vermelho sutil que gere curiosidade instantânea.)`;
@@ -160,17 +154,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       title,
-      nicho,
-      subnicho,
+      niche,
+      subniche,
+      context,
       publico_alvo,
-      nivel_consciencia,
-      inimigo_comum,
-      emocao_primaria,
-      tom_de_voz,
       idioma_narracao,
       cultura_alvo,
-      palavras_por_bloco,
-      quantidade_blocos,
+      wordCount,
       ref_transcripts,
     } = body;
 
@@ -196,18 +186,14 @@ export async function POST(request: Request) {
             messages: [{
               role: 'user',
               content: buildPrompt({
-                nicho: nicho || '',
-                subnicho: subnicho || '',
+                contexto_canal: context || '',
+                nicho: niche || '',
+                subnicho: subniche || '',
                 publico_alvo: publico_alvo || '',
-                nivel_consciencia: Number(nivel_consciencia) || 3,
-                inimigo_comum: inimigo_comum || '',
-                emocao_primaria: emocao_primaria || '',
-                tom_de_voz: tom_de_voz || '',
                 titulo_video: title || '',
                 idioma_narracao: idioma_narracao || 'Português',
                 cultura_alvo: cultura_alvo || 'Brasil',
-                palavras_por_bloco: Number(palavras_por_bloco) || 200,
-                quantidade_blocos: Number(quantidade_blocos) || 5,
+                quantidade_total_palavras: Number(wordCount) || 3000,
                 ref_transcripts,
               })
             }]
@@ -227,22 +213,17 @@ export async function POST(request: Request) {
           const parsed = parseScript(fullText);
           const result = {
             titulo: title,
-            nicho: nicho,
-            subnicho: subnicho,
+            nicho: niche || '',
+            subnicho: subniche || '',
             idioma: lang === 'pt' ? 'Português' : 'Inglês',
             analise_estrategica: parsed.analise_estrategica,
             thumbnail_prompt: parsed.thumbnail_prompt,
             cenas: parsed.cenas,
-            // metadata fields
+            contexto_canal: context,
             publico_alvo,
-            nivel_consciencia,
-            inimigo_comum,
-            emocao_primaria,
-            tom_de_voz,
             idioma_narracao,
             cultura_alvo,
-            palavras_por_bloco,
-            quantidade_blocos,
+            quantidade_total_palavras: wordCount
           };
 
           controller.enqueue(encoder.encode(

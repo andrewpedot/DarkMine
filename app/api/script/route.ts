@@ -117,7 +117,7 @@ function parseScript(text: string): { analise_estrategica: string; cenas: any[];
   const analise_estrategica = analiseMatch ? analiseMatch[1].trim() : '';
 
   // 2. Extract Thumbnail Prompt
-  const thumbMatch = text.match(/\[THUMBNAIL_PROMPT\]([\s\S]*?)$/i);
+  const thumbMatch = text.match(/\[(?:THUMBNAIL_PROMPT|PROMPT_DA_MINIATURA|MINIATURA_PROMPT|PROMPT_THUMBNAIL|THUMBNAIL)\]([\s\S]*?)$/i);
   const thumbnail_prompt = thumbMatch ? thumbMatch[1].trim() : '';
 
   // Remove thumbnail prompt from text to avoid matching it in last block
@@ -142,8 +142,24 @@ function parseScript(text: string): { analise_estrategica: string; cenas: any[];
     const endIdx = i + 1 < matches.length ? matches[i + 1].index : mainText.length;
     const blockContent = mainText.substring(startIdx, endIdx);
 
-    const narracaoMatch = blockContent.match(/\[NARRAÇÃO\]([\s\S]*?)$/i);
-    const narracao = narracaoMatch ? narracaoMatch[1].trim() : '';
+    let narracao = '';
+    // Match common variations of [NARRAÇÃO] in different languages
+    const narracaoMatch = blockContent.match(/\[(?:NARRA[ÇC][ÃA]O|NARRAC[JÓ]A|NARRATION|NARRACI[ÓÓ]N|NARRA[ÇC]AO|NARRACAO)\]([\s\S]*?)$/i);
+    
+    if (narracaoMatch) {
+      narracao = narracaoMatch[1].trim();
+    } else {
+      // Fallback: strip the [BLOCO: ...] header line and take all remaining text
+      const bracketIdx = blockContent.indexOf(']');
+      if (bracketIdx !== -1) {
+        narracao = blockContent.substring(bracketIdx + 1).trim();
+      } else {
+        narracao = blockContent.trim();
+      }
+    }
+
+    // Clean up trailing dashes/dividers
+    narracao = narracao.replace(/\s*\-\-\-\s*$/, '').trim();
 
     cenas.push({
       id: matches[i].id,

@@ -54,7 +54,17 @@ export default function LibraryPage() {
   const [channelToDelete, setChannelToDelete] = useState<Channel | null>(null);
   const [isDeletingChannel, setIsDeletingChannel] = useState(false);
 
-  // ── Projects ────────────────────────────────────────────────────────────
+  // New Card Modal states
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState('');
+  const [newProjectMarket, setNewProjectMarket] = useState('🇧🇷 PT-BR');
+  const [newProjectChannelName, setNewProjectChannelName] = useState('');
+  const [newProjectStatus, setNewProjectStatus] = useState<string>('hook');
+  const [newProjectPdfFile, setNewProjectPdfFile] = useState<File | null>(null);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  // ── Projects & Channels Fetch ───────────────────────────────────────────
   useEffect(() => {
     const fetchProjects = async () => {
       try {
@@ -78,12 +88,89 @@ export default function LibraryPage() {
       }
     };
     fetchProjects();
+    fetchChannels();
   }, []);
 
-  // ── Channels ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (tab === 'canais' && channels.length === 0) fetchChannels();
-  }, [tab]);
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjectTitle.trim()) return;
+    setIsCreatingProject(true);
+    setModalError(null);
+
+    try {
+      let uploadedFilename = '';
+      if (newProjectPdfFile) {
+        const formData = new FormData();
+        formData.append('file', newProjectPdfFile);
+        const uploadRes = await fetch('/api/projects/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok && uploadData.success) {
+          uploadedFilename = uploadData.filename;
+        } else {
+          throw new Error(uploadData.error || 'Erro no upload do PDF');
+        }
+      }
+
+      let createdProject = null;
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('projects')
+          .insert({
+            title_original: newProjectTitle.trim(),
+            market: newProjectMarket.trim(),
+            channel_name: newProjectChannelName || null,
+            reference_pdf: uploadedFilename || null,
+            status: newProjectStatus,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Erro ao salvar no Supabase:', error);
+          throw error;
+        }
+        createdProject = { ...data, analyzedMarkets: [] };
+      }
+
+      if (!createdProject) {
+        // LocalStorage Fallback
+        const newId = crypto.randomUUID();
+        createdProject = {
+          id: newId,
+          title_original: newProjectTitle.trim(),
+          market: newProjectMarket.trim(),
+          channel_name: newProjectChannelName || null,
+          reference_pdf: uploadedFilename || null,
+          status: newProjectStatus,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          analyzedMarkets: []
+        };
+        const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+        localStorage.setItem('darkmine_library', JSON.stringify([createdProject, ...lib]));
+      }
+
+      setProjects(prev => [createdProject, ...prev]);
+      
+      // Reset form & close modal
+      setNewProjectTitle('');
+      setNewProjectMarket('🇧🇷 PT-BR');
+      setNewProjectChannelName('');
+      setNewProjectStatus('hook');
+      setNewProjectPdfFile(null);
+      setShowNewProjectModal(false);
+    } catch (err: any) {
+      console.error('Erro ao criar projeto:', err);
+      setModalError(err.message || 'Erro ao criar projeto');
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
 
   const fetchChannels = async () => {
     setLoadingChannels(true);
@@ -273,6 +360,15 @@ export default function LibraryPage() {
                 </h1>
                 <p className="text-sm text-gray-400 mt-1 font-mono">Organize e exporte suas ideias mineradas.</p>
               </div>
+              <button
+                onClick={() => setShowNewProjectModal(true)}
+                className="h-10 px-5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold transition-colors shadow-lg shadow-orange-500/20 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Novo Card
+              </button>
             </div>
 
             <DragDropContext onDragEnd={onDragEnd}>
@@ -308,10 +404,20 @@ export default function LibraryPage() {
                                   >
                                     <div className="flex flex-col gap-2 relative">
                                       <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className={`text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border ${targetMarket.includes('Brasil') ? 'border-cyan-500/30 text-cyan-400 bg-cyan-900/20' : 'border-red-500/30 text-red-400 bg-red-900/20'}`}>
-                                            {targetMarket.includes('Brasil') ? '🇧🇷 PT-BR' : '🇲🇽 ES-MX'}
+                                        <div className="flex items-center gap-1.5 flex-wrap max-w-[85%]">
+                                          <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-400 bg-cyan-900/20">
+                                            {targetMarket}
                                           </span>
+                                          {project.channel_name && (
+                                            <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded border border-violet-500/30 text-violet-400 bg-violet-900/20" title={project.channel_name}>
+                                              SKU: {project.channel_name}
+                                            </span>
+                                          )}
+                                          {project.reference_pdf && (
+                                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-900/20 inline-flex items-center gap-1" title={project.reference_pdf}>
+                                              📎 PDF
+                                            </span>
+                                          )}
                                           {project.analyzedMarkets?.map((market: any) => (
                                             <span
                                               key={market.langCode}
@@ -323,7 +429,7 @@ export default function LibraryPage() {
                                         </div>
                                         <button
                                           onClick={(e) => { e.stopPropagation(); confirmDeleteProject(project.id, titleFinal || titleOriginal); }}
-                                          className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                          className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -335,11 +441,9 @@ export default function LibraryPage() {
                                         <Link href={`/hook?title=${encodeURIComponent(titleOriginal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-colors">
                                           🎣 Hook
                                         </Link>
-                                        {titleFinal && (
-                                          <Link href={`/script?title=${encodeURIComponent(titleFinal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-violet-900/30 text-violet-300 hover:text-white border border-violet-500/30 hover:bg-violet-800/50 transition-colors">
-                                            📝 Script
-                                          </Link>
-                                        )}
+                                        <Link href={`/script?title=${encodeURIComponent(titleFinal || titleOriginal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-violet-900/30 text-violet-300 hover:text-white border border-violet-500/30 hover:bg-violet-800/50 transition-colors">
+                                          📝 Script
+                                        </Link>
                                       </div>
                                     </div>
                                   </div>
@@ -606,6 +710,186 @@ export default function LibraryPage() {
           onClose={() => setDrawerOpen(false)}
           onSaved={handleChannelSaved}
         />
+      )}
+
+      {/* New Project Card Modal */}
+      {showNewProjectModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#0b0e14] border border-white/10 shadow-[0_0_50px_rgba(249,115,22,0.15)] rounded-2xl w-full max-w-lg p-6 m-4 relative max-h-[90vh] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📥</span>
+                <h3 className="text-lg font-black text-white">Criar Novo Card</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowNewProjectModal(false);
+                  setModalError(null);
+                }} 
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="mb-4 p-3 rounded-xl border border-red-500/30 bg-red-950/20 text-red-400 text-xs font-medium">
+                {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateProject} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Título Original do Vídeo <span className="text-orange-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newProjectTitle}
+                  onChange={e => setNewProjectTitle(e.target.value)}
+                  placeholder="Ex: 7 Hábitos Secretos dos Homens Altamente Atraentes"
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/60 focus:bg-white/[0.05] transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Idioma / Mercado <span className="text-orange-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newProjectMarket}
+                  onChange={e => setNewProjectMarket(e.target.value)}
+                  placeholder="Ex: 🇧🇷 PT-BR"
+                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/60 focus:bg-white/[0.05] transition-colors"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewProjectMarket('🇧🇷 PT-BR')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${newProjectMarket === '🇧🇷 PT-BR' ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+                  >
+                    🇧🇷 PT-BR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewProjectMarket('🇲🇽 ES-MX')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${newProjectMarket === '🇲🇽 ES-MX' ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+                  >
+                    🇲🇽 ES-MX
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Canal de Referência (SKU)
+                </label>
+                <div className="relative">
+                  <select
+                    value={newProjectChannelName}
+                    onChange={e => setNewProjectChannelName(e.target.value)}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
+                  >
+                    <option value="" className="bg-[#0d1017]">Selecionar canal SKU (opcional)</option>
+                    {channels.map(ch => (
+                      <option key={ch.id} value={ch.name} className="bg-[#0d1017]">{ch.name} ({ch.niche})</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Status Inicial
+                </label>
+                <div className="relative">
+                  <select
+                    value={newProjectStatus}
+                    onChange={e => setNewProjectStatus(e.target.value)}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
+                  >
+                    {prodColumns.map(col => (
+                      <option key={col.id} value={col.id} className="bg-[#0d1017]">{col.title}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                  Anexo de Referências (Roteiros, Títulos, Imagem - PDF)
+                </label>
+                <div className="relative border border-dashed border-white/10 hover:border-orange-500/40 rounded-xl p-4 transition-all bg-white/[0.01] hover:bg-white/[0.02]">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={e => setNewProjectPdfFile(e.target.files?.[0] || null)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-2 text-center">
+                    <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    {newProjectPdfFile ? (
+                      <span className="text-sm font-semibold text-emerald-400 font-mono flex items-center gap-1.5">
+                        📎 {newProjectPdfFile.name} ({(newProjectPdfFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        Clique ou arraste um arquivo PDF
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewProjectModal(false);
+                    setModalError(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 text-sm font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingProject}
+                  className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-bold shadow-lg shadow-orange-500/20 transition-all flex items-center gap-2"
+                >
+                  {isCreatingProject ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Salvando...
+                    </>
+                  ) : (
+                    'Criar Card'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

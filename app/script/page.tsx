@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '../../lib/supabase';
 import type { Channel } from '../../types/database';
 
 type BlockType = 'narracao' | 'thumbnail';
@@ -177,6 +178,8 @@ function DarkScriptGenerator() {
   const [idiomaNarracao, setIdiomaNarracao] = useState('Português');
   const [culturaAlvo, setCulturaAlvo] = useState('Brasil');
   const [quantidadeTotalPalavras, setQuantidadeTotalPalavras] = useState(3000);
+  const [referencePdf, setReferencePdf] = useState('');
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState('');
@@ -195,12 +198,66 @@ function DarkScriptGenerator() {
   const [isLoadingScripts, setIsLoadingScripts] = useState(false);
   const [rawScript, setRawScript] = useState<string>('');
 
+  const searchParams = useSearchParams();
+  const idParam = searchParams.get('id');
+  const titleParam = searchParams.get('title');
+
   useEffect(() => {
     fetch('/api/channels')
       .then(r => r.json())
-      .then(j => setChannels((j.channels || []).filter((c: Channel) => c.status === 'ativo')))
+      .then(j => {
+        const activeChannels = (j.channels || []).filter((c: Channel) => c.status === 'ativo');
+        setChannels(activeChannels);
+        return activeChannels;
+      })
+      .then(async (activeChannels) => {
+        if (idParam) {
+          setProjectId(idParam);
+          try {
+            let project = null;
+            if (supabase) {
+              const { data, error } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('id', idParam)
+                .single();
+              if (!error) project = data;
+            }
+            if (!project) {
+              const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+              project = lib.find((p: any) => p.id === idParam) || null;
+            }
+
+            if (project) {
+              setTitle(project.title_final || project.title_original || '');
+              if (project.market) {
+                setIdiomaNarracao(project.market);
+              }
+              if (project.reference_pdf) {
+                setReferencePdf(project.reference_pdf);
+              }
+              if (project.channel_name && activeChannels) {
+                const matchedChannel = activeChannels.find(
+                  (c: Channel) => c.name.toLowerCase() === project.channel_name.toLowerCase()
+                );
+                if (matchedChannel) {
+                  setSelectedChannelId(matchedChannel.id);
+                  setSelectedChannel(matchedChannel);
+                  setNiche(matchedChannel.niche);
+                  setSubniche(matchedChannel.sub_niche || '');
+                  setChannelContext(matchedChannel.persona || '');
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Erro ao carregar detalhes do projeto:', e);
+          }
+        } else if (titleParam) {
+          setTitle(titleParam);
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, [idParam, titleParam]);
 
   const handleChannelSelect = (channelId: string) => {
     setSelectedChannelId(channelId);
@@ -247,6 +304,7 @@ function DarkScriptGenerator() {
           publico_alvo: publicoAlvo,
           idioma_narracao: idiomaNarracao,
           cultura_alvo: culturaAlvo,
+          reference_pdf: referencePdf,
         }),
       });
       const data = await response.json();
@@ -254,6 +312,29 @@ function DarkScriptGenerator() {
       if (response.ok) {
         setFlowToast('✓ Roteiro salvo na biblioteca!');
         setTimeout(() => setFlowToast(null), 3000);
+
+        // Update project status in kanban pipeline
+        if (projectId) {
+          if (supabase) {
+            await supabase
+              .from('projects')
+              .update({
+                title_final: script.titulo,
+                status: 'produzido',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', projectId);
+          } else {
+            const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+            const idx = lib.findIndex((p: any) => p.id === projectId);
+            if (idx !== -1) {
+              lib[idx].title_final = script.titulo;
+              lib[idx].status = 'produzido';
+              lib[idx].updated_at = new Date().toISOString();
+              localStorage.setItem('darkmine_library', JSON.stringify(lib));
+            }
+          }
+        }
       } else {
         throw new Error(data.error || 'Erro ao salvar');
       }
@@ -330,6 +411,7 @@ function DarkScriptGenerator() {
           idioma_narracao: idiomaNarracao || 'Português',
           cultura_alvo: culturaAlvo.trim() || undefined,
           wordCount: Number(quantidadeTotalPalavras),
+          reference_pdf: referencePdf || undefined,
           ref_transcripts: selectedChannel?.ref_transcripts?.length ? selectedChannel.ref_transcripts : undefined,
           ref_titles: selectedChannel?.ref_titles?.length ? selectedChannel.ref_titles : undefined,
         }),
@@ -453,6 +535,23 @@ function DarkScriptGenerator() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Reference PDF Badge */}
+            {referencePdf && (
+              <div className="rounded-xl bg-cyan-900/10 border border-cyan-500/20 px-4 py-3.5 flex items-center justify-between text-xs text-cyan-400 animate-in fade-in duration-300">
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  <span>
+                    Documento PDF de Referência carregado: <strong className="text-white font-mono">{referencePdf}</strong>
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold bg-cyan-500/15 border border-cyan-500/30 px-2.5 py-0.5 rounded uppercase tracking-wider font-mono text-cyan-300 flex-shrink-0">
+                  Leitura Ativa do Agente
+                </span>
               </div>
             )}
 

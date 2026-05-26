@@ -1,3 +1,8 @@
+import fs from 'fs';
+import path from 'path';
+// @ts-ignore
+import pdfParse from 'pdf-parse';
+
 export const maxDuration = 300;
 
 function detectLanguage(text: string): string {
@@ -25,6 +30,7 @@ function buildPrompt({
   cultura_alvo,
   quantidade_total_palavras,
   ref_transcripts,
+  pdf_reference_text,
 }: {
   contexto_canal: string;
   nicho: string;
@@ -35,8 +41,12 @@ function buildPrompt({
   cultura_alvo: string;
   quantidade_total_palavras: number;
   ref_transcripts?: { title: string; transcript: string }[];
+  pdf_reference_text?: string;
 }) {
   const refTranscriptsBlock = buildRefTranscriptsBlock(ref_transcripts);
+  const pdfBlock = pdf_reference_text
+    ? `\n---REFERÊNCIAS DE DOCUMENTO PDF ANEXADO (ESTUDE E APLIQUE ESSAS DIRETRIZES DE ROTEIRO, TÍTULOS E IMAGEM)---\n${pdf_reference_text}\n---FIM DAS REFERÊNCIAS PDF ANEXADO---\n`
+    : '';
 
   return `## 1. DADOS DE ENTRADA
 - Canal / Contexto da Persona: ${contexto_canal}
@@ -47,7 +57,7 @@ function buildPrompt({
 - Idioma da Narração: ${idioma_narracao}
 - País/Cultura Alvo: ${cultura_alvo}
 - Tamanho Total do Roteiro: ~${quantidade_total_palavras} palavras
-
+${pdfBlock}
 ## 2. TRANSCRIÇÕES DE REFERÊNCIA (O RITMO)
 ${refTranscriptsBlock || 'Nenhuma transcrição de referência fornecida.'}
 **Regra de Clonagem:** Mimetize estritamente o RITMO, a estrutura de ganchos e a cadência destas referências. Extraia apenas a engenharia da atenção, nunca o conteúdo exato.
@@ -161,10 +171,26 @@ export async function POST(request: Request) {
       idioma_narracao,
       cultura_alvo,
       wordCount,
+      reference_pdf,
       ref_transcripts,
     } = body;
 
     const lang = detectLanguage(title);
+
+    let pdfReferenceText = '';
+    if (reference_pdf) {
+      try {
+        const pdfPath = path.join(process.cwd(), 'public', 'uploads', 'references', reference_pdf);
+        if (fs.existsSync(pdfPath)) {
+          const dataBuffer = fs.readFileSync(pdfPath);
+          const pdfData = await pdfParse(dataBuffer);
+          pdfReferenceText = pdfData.text || '';
+          console.log(`Successfully parsed reference PDF: ${reference_pdf} (${pdfReferenceText.length} chars)`);
+        }
+      } catch (err) {
+        console.error('Error parsing reference PDF:', err);
+      }
+    }
 
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -195,6 +221,7 @@ export async function POST(request: Request) {
                 cultura_alvo: cultura_alvo || 'Brasil',
                 quantidade_total_palavras: Number(wordCount) || 3000,
                 ref_transcripts,
+                pdf_reference_text: pdfReferenceText || undefined,
               })
             }]
           });
@@ -223,7 +250,8 @@ export async function POST(request: Request) {
             publico_alvo,
             idioma_narracao,
             cultura_alvo,
-            quantidade_total_palavras: wordCount
+            quantidade_total_palavras: wordCount,
+            reference_pdf,
           };
 
           controller.enqueue(encoder.encode(

@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       publico_alvo,
       idioma_narracao,
       cultura_alvo,
+      reference_pdf,
     } = body;
 
     if (!titulo) {
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
       publico_alvo: publico_alvo || '',
       idioma_narracao: idioma_narracao || 'Português',
       cultura_alvo: cultura_alvo || 'Brasil',
+      reference_pdf: reference_pdf || '',
     };
 
     const scriptData = {
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest) {
       publico_alvo: publico_alvo || '',
       idioma_narracao: idioma_narracao || 'Português',
       cultura_alvo: cultura_alvo || 'Brasil',
+      reference_pdf: reference_pdf || '',
     };
 
     let result;
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
       if (error) {
         console.error('Update error, attempting fallback without new columns...', error);
         // Fallback: If new columns do not exist in the table yet, remove them and save only to JSON
-        const { publico_alvo, idioma_narracao, cultura_alvo, ...fallbackData } = scriptData;
+        const { publico_alvo, idioma_narracao, cultura_alvo, reference_pdf: ref_pdf, ...fallbackData } = scriptData;
         const { data: fbData, error: fbError } = await supabase
           .from('darkmine_scripts')
           .update(fallbackData)
@@ -97,7 +100,7 @@ export async function POST(request: NextRequest) {
       if (error) {
         console.error('Insert error, attempting fallback without new columns...', error);
         // Fallback: If new columns do not exist in the table yet, remove them and save only to JSON
-        const { publico_alvo, idioma_narracao, cultura_alvo, ...fallbackData } = scriptData;
+        const { publico_alvo, idioma_narracao, cultura_alvo, reference_pdf: ref_pdf, ...fallbackData } = scriptData;
         const { data: fbData, error: fbError } = await supabase
           .from('darkmine_scripts')
           .insert({

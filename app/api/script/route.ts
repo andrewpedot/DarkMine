@@ -180,12 +180,18 @@ export async function POST(request: Request) {
     let pdfReferenceText = '';
     if (reference_pdf) {
       try {
-        const pdfPath = path.join(process.cwd(), 'public', 'uploads', 'references', reference_pdf);
-        if (fs.existsSync(pdfPath)) {
-          const dataBuffer = fs.readFileSync(pdfPath);
-          const pdfData = await pdfParse(dataBuffer);
-          pdfReferenceText = pdfData.text || '';
-          console.log(`Successfully parsed reference PDF: ${reference_pdf} (${pdfReferenceText.length} chars)`);
+        if (reference_pdf.startsWith('{')) {
+          const parsed = JSON.parse(reference_pdf);
+          pdfReferenceText = parsed.text || '';
+          console.log(`Successfully retrieved pre-extracted PDF text: ${parsed.filename} (${pdfReferenceText.length} chars)`);
+        } else {
+          const pdfPath = path.join(process.cwd(), 'public', 'uploads', 'references', reference_pdf);
+          if (fs.existsSync(pdfPath)) {
+            const dataBuffer = fs.readFileSync(pdfPath);
+            const pdfData = await pdfParse(dataBuffer);
+            pdfReferenceText = pdfData.text || '';
+            console.log(`Successfully parsed reference PDF: ${reference_pdf} (${pdfReferenceText.length} chars)`);
+          }
         }
       } catch (err) {
         console.error('Error parsing reference PDF:', err);

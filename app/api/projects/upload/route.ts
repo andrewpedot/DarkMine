@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+// @ts-ignore
+import pdfParse from 'pdf-parse';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,26 +14,19 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create public/uploads/references directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'references');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    // Parse the PDF directly from the memory buffer!
+    const pdfData = await pdfParse(buffer);
+    const textContent = pdfData.text || '';
 
-    // Sanitize filename and prepend timestamp
-    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const filePath = path.join(uploadDir, safeName);
+    console.log(`PDF parsed in memory: ${file.name} (${textContent.length} chars)`);
 
-    fs.writeFileSync(filePath, buffer);
-
-    console.log('PDF de referência salvo em:', filePath);
     return NextResponse.json({ 
       success: true, 
-      filename: safeName, 
-      filepath: `/uploads/references/${safeName}` 
+      filename: file.name,
+      text: textContent
     });
   } catch (error: any) {
-    console.error('Erro no upload de PDF:', error);
-    return NextResponse.json({ error: error.message || 'Erro interno' }, { status: 500 });
+    console.error('Erro no upload e parse de PDF:', error);
+    return NextResponse.json({ error: error.message || 'Erro interno ao processar PDF' }, { status: 500 });
   }
 }

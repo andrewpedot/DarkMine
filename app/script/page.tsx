@@ -539,21 +539,30 @@ function DarkScriptGenerator() {
             )}
 
             {/* Reference PDF Badge */}
-            {referencePdf && (
-              <div className="rounded-xl bg-cyan-900/10 border border-cyan-500/20 px-4 py-3.5 flex items-center justify-between text-xs text-cyan-400 animate-in fade-in duration-300">
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                  <span>
-                    Documento PDF de Referência carregado: <strong className="text-white font-mono">{referencePdf}</strong>
+            {referencePdf && (() => {
+              let displayFilename = referencePdf;
+              try {
+                if (referencePdf.startsWith('{')) {
+                  const parsed = JSON.parse(referencePdf);
+                  displayFilename = parsed.filename;
+                }
+              } catch {}
+              return (
+                <div className="rounded-xl bg-cyan-900/10 border border-cyan-500/20 px-4 py-3.5 flex items-center justify-between text-xs text-cyan-400 animate-in fade-in duration-300">
+                  <div className="flex items-center gap-2.5">
+                    <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    <span>
+                      Documento PDF de Referência carregado: <strong className="text-white font-mono">{displayFilename}</strong>
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-cyan-500/15 border border-cyan-500/30 px-2.5 py-0.5 rounded uppercase tracking-wider font-mono text-cyan-300 flex-shrink-0">
+                    Leitura Ativa do Agente
                   </span>
                 </div>
-                <span className="text-[10px] font-bold bg-cyan-500/15 border border-cyan-500/30 px-2.5 py-0.5 rounded uppercase tracking-wider font-mono text-cyan-300 flex-shrink-0">
-                  Leitura Ativa do Agente
-                </span>
-              </div>
-            )}
+              );
+            })()}
 
             <div>
               <FieldLabel>Título do Vídeo</FieldLabel>

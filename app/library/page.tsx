@@ -98,7 +98,7 @@ export default function LibraryPage() {
     setModalError(null);
 
     try {
-      let uploadedFilename = '';
+      let referencePdfValue = '';
       if (newProjectPdfFile) {
         const formData = new FormData();
         formData.append('file', newProjectPdfFile);
@@ -108,7 +108,10 @@ export default function LibraryPage() {
         });
         const uploadData = await uploadRes.json();
         if (uploadRes.ok && uploadData.success) {
-          uploadedFilename = uploadData.filename;
+          referencePdfValue = JSON.stringify({
+            filename: uploadData.filename,
+            text: uploadData.text || ''
+          });
         } else {
           throw new Error(uploadData.error || 'Erro no upload do PDF');
         }
@@ -122,7 +125,7 @@ export default function LibraryPage() {
             title_original: newProjectTitle.trim(),
             market: newProjectMarket.trim(),
             channel_name: newProjectChannelName || null,
-            reference_pdf: uploadedFilename || null,
+            reference_pdf: referencePdfValue || null,
             status: newProjectStatus,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -145,7 +148,7 @@ export default function LibraryPage() {
           title_original: newProjectTitle.trim(),
           market: newProjectMarket.trim(),
           channel_name: newProjectChannelName || null,
-          reference_pdf: uploadedFilename || null,
+          reference_pdf: referencePdfValue || null,
           status: newProjectStatus,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -413,11 +416,22 @@ export default function LibraryPage() {
                                               SKU: {project.channel_name}
                                             </span>
                                           )}
-                                          {project.reference_pdf && (
-                                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-900/20 inline-flex items-center gap-1" title={project.reference_pdf}>
-                                              📎 PDF
-                                            </span>
-                                          )}
+                                          {project.reference_pdf && (() => {
+                                            let displayFilename = 'PDF';
+                                            try {
+                                              if (project.reference_pdf.startsWith('{')) {
+                                                const parsed = JSON.parse(project.reference_pdf);
+                                                displayFilename = parsed.filename || 'PDF';
+                                              } else {
+                                                displayFilename = project.reference_pdf;
+                                              }
+                                            } catch {}
+                                            return (
+                                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-900/20 inline-flex items-center gap-1" title={displayFilename}>
+                                                📎 {displayFilename.length > 15 ? displayFilename.substring(0, 15) + '...' : displayFilename}
+                                              </span>
+                                            );
+                                          })()}
                                           {project.analyzedMarkets?.map((market: any) => (
                                             <span
                                               key={market.langCode}

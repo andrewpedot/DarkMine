@@ -25,22 +25,22 @@ interface ScriptData {
 }
 
 const WORD_OPTIONS = [
-  { words: 1500, label: '1500 palavras', sublabel: '~10 min' },
-  { words: 1750, label: '1750 palavras', sublabel: '~11.7 min' },
-  { words: 2000, label: '2000 palavras', sublabel: '~13.3 min' },
-  { words: 2250, label: '2250 palavras', sublabel: '~15 min' },
-  { words: 2500, label: '2500 palavras', sublabel: '~16.7 min' },
-  { words: 2750, label: '2750 palavras', sublabel: '~18.3 min' },
-  { words: 3000, label: '3000 palavras', sublabel: '~20 min' },
-  { words: 3500, label: '3500 palavras', sublabel: '~23.3 min' },
-  { words: 4000, label: '4000 palavras', sublabel: '~26.7 min' },
-  { words: 4500, label: '4500 palavras', sublabel: '~30 min' },
-  { words: 6000, label: '6000 palavras', sublabel: '~40 min' },
-  { words: 7500, label: '7500 palavras', sublabel: '~50 min' },
-  { words: 9000, label: '9000 palavras', sublabel: '~60 min' },
-  { words: 10500, label: '10500 palavras', sublabel: '~70 min' },
-  { words: 12000, label: '12000 palavras', sublabel: '~80 min' },
-  { words: 13500, label: '13500 palavras', sublabel: '~90 min' },
+  { words: 3000, label: '3000 palavras', sublabel: '~10 min' },
+  { words: 3500, label: '3500 palavras', sublabel: '~11.7 min' },
+  { words: 4000, label: '4000 palavras', sublabel: '~13.3 min' },
+  { words: 4500, label: '4500 palavras', sublabel: '~15 min' },
+  { words: 5000, label: '5000 palavras', sublabel: '~16.7 min' },
+  { words: 5500, label: '5500 palavras', sublabel: '~18.3 min' },
+  { words: 6000, label: '6000 palavras', sublabel: '~20 min' },
+  { words: 7000, label: '7000 palavras', sublabel: '~23.3 min' },
+  { words: 8000, label: '8000 palavras', sublabel: '~26.7 min' },
+  { words: 9000, label: '9000 palavras', sublabel: '~30 min' },
+  { words: 12000, label: '12000 palavras', sublabel: '~40 min' },
+  { words: 15000, label: '15000 palavras', sublabel: '~50 min' },
+  { words: 18000, label: '18000 palavras', sublabel: '~60 min' },
+  { words: 21000, label: '21000 palavras', sublabel: '~70 min' },
+  { words: 24000, label: '24000 palavras', sublabel: '~80 min' },
+  { words: 27000, label: '27000 palavras', sublabel: '~90 min' },
 ] as const;
 
 const BLOCK_CONFIG = {
@@ -197,6 +197,29 @@ function DarkScriptGenerator() {
   const [copied, setCopied] = useState<CopiedState>(null);
   const [streamingText, setStreamingText] = useState('');
   const [generationStage, setGenerationStage] = useState<'idle' | 'generating' | 'parsing' | 'done'>('idle');
+  const [recentScripts, setRecentScripts] = useState<any[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchRecentScripts = async () => {
+    setLoadingRecent(true);
+    try {
+      const response = await fetch('/api/script/load?limit=50');
+      const data = await response.json();
+      if (data.scripts) {
+        setRecentScripts(data.scripts);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentScripts();
+  }, []);
+
   const [isSaving, setIsSaving] = useState(false);
   const [fullNarration, setFullNarration] = useState('');
   const [flowToast, setFlowToast] = useState<string | null>(null);
@@ -255,6 +278,43 @@ function DarkScriptGenerator() {
                   setChannelContext(matchedChannel.persona || '');
                 }
               }
+
+              // Load the script automatically if it exists!
+              const titleParamVal = project.title_final || project.title_original || '';
+              fetch(`/api/script/load?id=${project.id}&title=${encodeURIComponent(titleParamVal)}`)
+                .then(r => r.json())
+                .then(data => {
+                  if (data.success && data.script) {
+                    const savedScript = data.script;
+                    setScript(savedScript.conteudo);
+                    setTitle(savedScript.conteudo.titulo || savedScript.titulo || project.title_final || project.title_original || '');
+                    setNiche(savedScript.conteudo.nicho || savedScript.nicho || '');
+                    setSubniche(savedScript.conteudo.subnicho || savedScript.subnicho || '');
+                    setChannelContext(savedScript.conteudo.contexto || savedScript.contexto || '');
+                    setQuantidadeTotalPalavras(savedScript.wordcount || 3000);
+                    
+                    const content = savedScript.conteudo;
+                    setPublicoAlvo(content.publico_alvo || savedScript.publico_alvo || '');
+                    setIdiomaNarracao(content.idioma_narracao || savedScript.idioma_narracao || 'Português');
+                    setCulturaAlvo(content.cultura_alvo || savedScript.cultura_alvo || 'Brasil');
+                    
+                    setNivelConsciencia(content.nivel_consciencia || savedScript.nivel_consciencia || 3);
+                    setInimigoComum(content.inimigo_comum || savedScript.inimigo_comum || '');
+                    setEmocaoPrimaria(content.emocao_primaria || savedScript.emocao_primaria || '');
+                    setTomDeVoz(content.tom_de_voz || savedScript.tom_de_voz || '');
+                    setQuantidadeBlocos(content.quantidade_blocos || savedScript.quantidade_blocos || 5);
+                    
+                    setGenerationStage('done');
+                    
+                    if (savedScript.conteudo.cenas) {
+                      const narrationText = savedScript.conteudo.cenas
+                        .map((s: any, i: number) => `[BLOCO ${i + 1}]\n${s.narracao}`)
+                        .join('\n\n');
+                      setFullNarration(narrationText);
+                    }
+                  }
+                })
+                .catch(() => {});
             }
           } catch (e) {
             console.error('Erro ao carregar detalhes do projeto:', e);
@@ -350,6 +410,8 @@ function DarkScriptGenerator() {
             }
           }
         }
+        
+        fetchRecentScripts(); // Refresh recent scripts sidebar!
       } else {
         throw new Error(data.error || 'Erro ao salvar');
       }
@@ -378,38 +440,115 @@ function DarkScriptGenerator() {
     }
   };
 
-  const selectScript = (savedScript: any) => {
+  const selectScript = async (savedScript: any) => {
     console.log('Selecionando script:', savedScript);
-    if (savedScript.conteudo) {
-      setScript(savedScript.conteudo);
-      setTitle(savedScript.conteudo.titulo || savedScript.titulo || '');
-      setNiche(savedScript.conteudo.nicho || savedScript.nicho || '');
-      setSubniche(savedScript.conteudo.subnicho || savedScript.subnicho || '');
-      setChannelContext(savedScript.conteudo.contexto || savedScript.contexto || '');
-      setQuantidadeTotalPalavras(savedScript.wordcount || 3000);
-      
-      const content = savedScript.conteudo;
-      setPublicoAlvo(content.publico_alvo || savedScript.publico_alvo || '');
-      setIdiomaNarracao(content.idioma_narracao || savedScript.idioma_narracao || 'Português');
-      setCulturaAlvo(content.cultura_alvo || savedScript.cultura_alvo || 'Brasil');
-      
-      // Load neuromarketing parameters
-      setNivelConsciencia(content.nivel_consciencia || savedScript.nivel_consciencia || 3);
-      setInimigoComum(content.inimigo_comum || savedScript.inimigo_comum || '');
-      setEmocaoPrimaria(content.emocao_primaria || savedScript.emocao_primaria || '');
-      setTomDeVoz(content.tom_de_voz || savedScript.tom_de_voz || '');
-      setQuantidadeBlocos(content.quantidade_blocos || savedScript.quantidade_blocos || 5);
-      
-      setGenerationStage('done');
+    setIsLoadingScripts(true);
+    try {
+      const res = await fetch(`/api/script/load?id=${savedScript.id}`);
+      const data = await res.json();
+      if (data.success && data.script) {
+        const fullScript = data.script;
+        setScript(fullScript.conteudo);
+        setTitle(fullScript.conteudo.titulo || fullScript.titulo || '');
+        setNiche(fullScript.conteudo.nicho || fullScript.nicho || '');
+        setSubniche(fullScript.conteudo.subnicho || fullScript.subnicho || '');
+        setChannelContext(fullScript.conteudo.contexto || fullScript.contexto || '');
+        setQuantidadeTotalPalavras(fullScript.wordcount || 3000);
+        
+        const content = fullScript.conteudo;
+        setPublicoAlvo(content.publico_alvo || fullScript.publico_alvo || '');
+        setIdiomaNarracao(content.idioma_narracao || fullScript.idioma_narracao || 'Português');
+        setCulturaAlvo(content.cultura_alvo || fullScript.cultura_alvo || 'Brasil');
+        
+        // Load neuromarketing parameters
+        setNivelConsciencia(content.nivel_consciencia || fullScript.nivel_consciencia || 3);
+        setInimigoComum(content.inimigo_comum || fullScript.inimigo_comum || '');
+        setEmocaoPrimaria(content.emocao_primaria || fullScript.emocao_primaria || '');
+        setTomDeVoz(content.tom_de_voz || fullScript.tom_de_voz || '');
+        setQuantidadeBlocos(content.quantidade_blocos || fullScript.quantidade_blocos || 5);
+        
+        setGenerationStage('done');
 
-      if (savedScript.conteudo.cenas) {
-        const narrationText = savedScript.conteudo.cenas
-          .map((s: any, i: number) => `[BLOCO ${i + 1}]\n${s.narracao}`)
-          .join('\n\n');
-        setFullNarration(narrationText);
+        if (fullScript.conteudo.cenas) {
+          const narrationText = fullScript.conteudo.cenas
+            .map((s: any, i: number) => `[BLOCO ${i + 1}]\n${s.narracao}`)
+            .join('\n\n');
+          setFullNarration(narrationText);
+        }
       }
+    } catch (err) {
+      console.error('Erro ao carregar roteiro completo:', err);
+      setFlowToast('Erro ao carregar roteiro.');
+    } finally {
+      setIsLoadingScripts(false);
+      setShowLoadModal(false);
     }
-    setShowLoadModal(false);
+  };
+
+  const autoSaveScript = async (generatedScript: ScriptData, rawText: string) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/script/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          titulo: generatedScript.titulo || title,
+          nicho: generatedScript.nicho || niche,
+          subnicho: subniche,
+          contexto: channelContext,
+          wordcount: quantidadeTotalPalavras,
+          id: projectId,
+          conteudo: generatedScript,
+          conteudo_raw: rawText,
+          // metadata fields
+          publico_alvo: publicoAlvo,
+          idioma_narracao: idiomaNarracao,
+          cultura_alvo: culturaAlvo,
+          reference_pdf: referencePdf,
+          // Neuromarketing parameters
+          nivel_consciencia: nivelConsciencia,
+          inimigo_comum: inimigoComum,
+          emocao_primaria: emocaoPrimaria,
+          tom_de_voz: tomDeVoz,
+          quantidade_blocos: quantidadeBlocos,
+          palavras_por_bloco: Math.round(quantidadeTotalPalavras / quantidadeBlocos),
+        }),
+      });
+      const data = await response.json();
+      console.log('Auto-salvamento:', data);
+      if (response.ok) {
+        setFlowToast('✓ Roteiro gerado e salvo automaticamente!');
+        setTimeout(() => setFlowToast(null), 3000);
+
+        // Update project status in kanban pipeline
+        if (projectId) {
+          if (supabase) {
+            await supabase
+              .from('projects')
+              .update({
+                title_final: generatedScript.titulo || title,
+                status: 'produzido',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', projectId);
+          } else {
+            const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+            const idx = lib.findIndex((p: any) => p.id === projectId);
+            if (idx !== -1) {
+              lib[idx].title_final = generatedScript.titulo || title;
+              lib[idx].status = 'produzido';
+              lib[idx].updated_at = new Date().toISOString();
+              localStorage.setItem('darkmine_library', JSON.stringify(lib));
+            }
+          }
+        }
+        fetchRecentScripts(); // Refresh lists!
+      }
+    } catch (err) {
+      console.error('Erro no auto-save:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -487,6 +626,7 @@ function DarkScriptGenerator() {
               setScript(result);
               setRawScript(streamingText);
               setGenerationStage('done');
+              autoSaveScript(result, streamingText);
             } else if (event.type === 'error') {
               throw new Error(event.message);
             }
@@ -526,10 +666,75 @@ function DarkScriptGenerator() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
+      <main className="max-w-[1800px] w-full mx-auto px-6 py-10">
+        
+        {(() => {
+          const filteredRecent = recentScripts.filter(s => 
+            s.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (s.nicho && s.nicho.toLowerCase().includes(searchQuery.toLowerCase()))
+          );
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              {/* SIDEBAR: Saved Scripts */}
+              <aside className="lg:col-span-3 rounded-2xl p-5 border border-white/10 bg-black/40 backdrop-blur-md flex flex-col gap-4 max-h-[85vh]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-violet-400 uppercase tracking-widest flex items-center gap-2">
+                    <span>📁</span> Roteiros Salvos ({filteredRecent.length})
+                  </h3>
+                  {loadingRecent && (
+                    <svg className="w-3.5 h-3.5 animate-spin text-violet-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                </div>
 
-        <div className="rounded-2xl p-6 mb-8 border border-white/10 bg-black/40 backdrop-blur-md">
-          <div className="flex flex-col gap-6">
+                {/* Search field */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Buscar roteiro..."
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-violet-500/60 focus:bg-white/[0.05] transition-colors"
+                  />
+                  <svg className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+
+                {/* List scroll */}
+                <div className="flex-1 overflow-y-auto space-y-2 max-h-[65vh] pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.05) transparent' }}>
+                  {filteredRecent.length === 0 ? (
+                    <div className="text-center py-8 text-[11px] text-gray-500 font-mono">
+                      {loadingRecent ? 'Carregando...' : 'Nenhum roteiro salvo.'}
+                    </div>
+                  ) : (
+                    filteredRecent.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => selectScript(s)}
+                        className="w-full text-left p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-violet-500/30 hover:bg-violet-950/10 transition-all flex flex-col gap-1"
+                      >
+                        <h4 className="text-xs font-semibold text-gray-200 line-clamp-2 leading-snug">
+                          {s.titulo}
+                        </h4>
+                        <div className="flex items-center justify-between text-[9px] font-mono text-gray-500 w-full">
+                          <span className="truncate max-w-[120px]">{s.nicho || 'Geral'}</span>
+                          <span>{s.wordcount} pal.</span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </aside>
+
+              {/* MAIN CONTENT AREA */}
+              <div className="lg:col-span-9 space-y-6">
+                
+                <div className="rounded-2xl p-6 mb-8 border border-white/10 bg-black/40 backdrop-blur-md">
+                  <div className="flex flex-col gap-6">
 
             {/* Canal */}
             {channels.length > 0 && (
@@ -763,12 +968,7 @@ function DarkScriptGenerator() {
                 </div>
 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <FieldLabel>Qtd de Blocos</FieldLabel>
-                    <span className="text-[10px] font-mono text-violet-400">
-                      ~{Math.round(quantidadeTotalPalavras / quantidadeBlocos)} pal/bloco
-                    </span>
-                  </div>
+                  <FieldLabel>Qtd de Blocos</FieldLabel>
                   <div className="relative">
                     <select
                       value={quantidadeBlocos}
@@ -1052,6 +1252,10 @@ function DarkScriptGenerator() {
             </div>
           </div>
         )}
+              </div>
+            </div>
+          );
+        })()}
       </main>
     </div>
   );

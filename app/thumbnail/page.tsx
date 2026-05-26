@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { generateThumbPrompt } from '../actions/generate-thumb';
+import { generateThumbPrompt, TEMPLATES } from '../actions/generate-thumb';
 
 export default function ThumbnailPage() {
     const router = useRouter();
@@ -17,6 +17,10 @@ export default function ThumbnailPage() {
         promptAlt: string;
     } | null>(null);
     const [copiedField, setCopiedField] = useState<string | null>(null);
+
+    const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+    const [referenceImage, setReferenceImage] = useState<string>('');
+    const [referenceImageName, setReferenceImageName] = useState<string>('');
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -33,12 +37,34 @@ export default function ThumbnailPage() {
         return { emocao, conceito, tensao, prompt, promptAlt };
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Por favor, envie apenas arquivos de imagem.');
+            return;
+        }
+
+        setReferenceImageName(file.name);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setReferenceImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const clearReferenceImage = () => {
+        setReferenceImage('');
+        setReferenceImageName('');
+    };
+
     const handleGenerate = async () => {
         if (!titleInput.trim()) return;
         setIsGenerating(true);
         setResult(null);
         try {
-            const text = await generateThumbPrompt(titleInput);
+            const text = await generateThumbPrompt(titleInput, selectedTemplate || undefined, referenceImage || undefined);
             setResult(parseResult(text));
         } catch (error) {
             console.error(error);
@@ -101,8 +127,75 @@ export default function ThumbnailPage() {
                                 value={titleInput}
                                 onChange={(e) => setTitleInput(e.target.value)}
                                 placeholder="Cole aqui o título gerado pelo DarkHook..."
-                                className="input-dark w-full px-4 py-4 rounded-xl text-sm font-mono min-h-[120px] resize-none focus:ring-amber-500/50"
+                                className="input-dark w-full px-4 py-4 rounded-xl text-sm font-mono min-h-[100px] resize-none focus:ring-amber-500/50"
                             />
+                        </div>
+
+                        {/* Seletor de Modelo / Template */}
+                        <div>
+                            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-3">Modelo / Estilo de Thumbnail (Opcional)</label>
+                            <div className="grid grid-cols-1 gap-2.5 max-h-[220px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(245,158,11,0.2) transparent' }}>
+                                <button
+                                    onClick={() => setSelectedTemplate('')}
+                                    className={`text-left p-3.5 rounded-xl border transition-all flex flex-col gap-1 ${!selectedTemplate ? 'border-amber-500/50 bg-amber-950/20 text-white shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 text-gray-300'}`}
+                                >
+                                    <span className="text-xs font-bold">✨ Estilo Livre / Auto-Dedução</span>
+                                    <span className="text-[10px] text-gray-500">O robô deduzirá a melhor estética com base puramente no título e na emoção exigida.</span>
+                                </button>
+                                {Object.entries(TEMPLATES).map(([id, t]) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => setSelectedTemplate(id)}
+                                        className={`text-left p-3.5 rounded-xl border transition-all flex flex-col gap-1 ${selectedTemplate === id ? 'border-amber-500/50 bg-amber-950/20 text-white shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 text-gray-300'}`}
+                                    >
+                                        <span className="text-xs font-bold">{t.name}</span>
+                                        <span className="text-[10px] text-gray-500 leading-snug">{t.description}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Imagem de Referência */}
+                        <div>
+                            <label className="block text-xs text-gray-500 font-mono uppercase tracking-wider mb-2">Imagem de Referência (Opcional - Recomposição por IA)</label>
+                            
+                            {!referenceImage ? (
+                                <div className="border border-dashed border-white/10 hover:border-amber-500/40 rounded-xl p-6 text-center transition-all bg-white/[0.01] hover:bg-white/[0.02] relative cursor-pointer">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                    <svg className="w-8 h-8 text-gray-600 mx-auto mb-2.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 002.25 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                    </svg>
+                                    <span className="block text-xs font-semibold text-gray-400">Arraste ou clique para enviar uma imagem</span>
+                                    <span className="block text-[10px] text-gray-600 mt-1">PNG, JPG ou WEBP. A IA analisará a composição e recriará sob o novo título.</span>
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-3.5 flex items-center justify-between gap-3 text-xs">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <img 
+                                            src={referenceImage} 
+                                            alt="Preview" 
+                                            className="w-12 h-12 rounded-lg object-cover border border-white/15 flex-shrink-0"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <span className="block font-medium text-white truncate">{referenceImageName}</span>
+                                            <span className="block text-[9px] text-amber-500/80 font-mono uppercase tracking-wider">Leitura Multimodal Ativa</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={clearReferenceImage}
+                                        className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <button

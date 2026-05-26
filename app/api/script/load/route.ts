@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '10');
     const id = searchParams.get('id');
+    const title = searchParams.get('title');
 
     if (id) {
       const { data, error } = await supabase
@@ -21,12 +22,38 @@ export async function GET(request: NextRequest) {
         .eq('id', id)
         .single();
 
-      if (error) {
-        console.error('Load error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!error && data) {
+        return NextResponse.json({ success: true, script: data });
+      }
+      console.log(`Roteiro não encontrado por ID (${id}), tentando buscar por título...`);
+    }
+
+    if (title) {
+      // Try exact title match first
+      const { data: exactData, error: exactError } = await supabase
+        .from('darkmine_scripts')
+        .select('*')
+        .ilike('titulo', title)
+        .limit(1);
+
+      if (!exactError && exactData && exactData.length > 0) {
+        return NextResponse.json({ success: true, script: exactData[0] });
       }
 
-      return NextResponse.json({ success: true, script: data });
+      // Try partial title match
+      const { data: partialData, error: partialError } = await supabase
+        .from('darkmine_scripts')
+        .select('*')
+        .ilike('titulo', `%${title}%`)
+        .limit(1);
+
+      if (!partialError && partialData && partialData.length > 0) {
+        return NextResponse.json({ success: true, script: partialData[0] });
+      }
+    }
+
+    if (id && !title) {
+      return NextResponse.json({ error: 'Roteiro não encontrado' }, { status: 404 });
     }
 
     const { data: scripts, error } = await supabase

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Eye } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { supabase } from '../../lib/supabase';
 import ChannelDrawer from '../../components/ChannelDrawer';
+import ProjectDetailsModal from '../../components/ProjectDetailsModal';
 import type { Channel, ChannelStatus } from '../../types/database';
 
 interface ProjectWithMarkets extends Record<string, any> {
@@ -41,6 +42,34 @@ export default function LibraryPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [projectToDelete, setProjectToDelete] = useState<{ id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+
+  const handleProjectSaved = async (updatedProject: any) => {
+    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    setSelectedProject(updatedProject);
+    try {
+      const updates = {
+        title_original: updatedProject.title_original,
+        title_final: updatedProject.title_final,
+        market: updatedProject.market,
+        channel_name: updatedProject.channel_name,
+        status: updatedProject.status,
+      };
+      if (supabase) {
+        const { error } = await supabase.from('projects').update(updates).eq('id', updatedProject.id);
+        if (error) throw error;
+      } else {
+        const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
+        const idx = lib.findIndex((p: any) => p.id === updatedProject.id);
+        if (idx !== -1) {
+          lib[idx] = { ...lib[idx], ...updates, updated_at: new Date().toISOString() };
+          localStorage.setItem('darkmine_library', JSON.stringify(lib));
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar projeto no banco:', e);
+    }
+  };
 
   // Channels state
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -403,7 +432,8 @@ export default function LibraryPage() {
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
                                     style={provided.draggableProps.style}
-                                    className={`bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 transition-colors ${['produzido', 'publicado'].includes(col.id) ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-white/20'} ${snapshot.isDragging ? 'shadow-2xl bg-gray-900 border-white/20 z-[9999]' : ''}`}
+                                    onClick={() => setSelectedProject(project)}
+                                    className={`bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col gap-3 transition-colors cursor-pointer ${['produzido', 'publicado'].includes(col.id) ? 'opacity-50 grayscale hover:grayscale-0' : 'hover:border-white/20'} ${snapshot.isDragging ? 'shadow-2xl bg-gray-900 border-white/20 z-[9999]' : ''}`}
                                   >
                                     <div className="flex flex-col gap-2 relative">
                                       <div className="flex items-center justify-between">
@@ -441,21 +471,46 @@ export default function LibraryPage() {
                                             </span>
                                           ))}
                                         </div>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); confirmDeleteProject(project.id, titleFinal || titleOriginal); }}
-                                          className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                      <h3 className={`text-sm line-clamp-2 leading-tight ${titleFinal ? 'text-emerald-300 font-bold' : 'font-medium text-gray-200'}`} title={titleFinal || titleOriginal}>
-                                        {titleFinal ? `✨ ${titleFinal}` : titleOriginal}
-                                      </h3>
+                                         <div className="flex items-center gap-1 flex-shrink-0">
+                                           <button
+                                             type="button"
+                                             onClick={(e) => { e.stopPropagation(); setSelectedProject(project); }}
+                                             className="p-1 rounded text-gray-500 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                                             title="Visualizar Detalhes"
+                                           >
+                                             <Eye className="w-3.5 h-3.5" />
+                                           </button>
+                                           <button
+                                             type="button"
+                                             onClick={(e) => { e.stopPropagation(); confirmDeleteProject(project.id, titleFinal || titleOriginal); }}
+                                             className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                                           >
+                                             <Trash2 className="w-3.5 h-3.5" />
+                                           </button>
+                                         </div>
+                                       </div>
+                                       <button
+                                         type="button"
+                                         onClick={(e) => { e.stopPropagation(); setSelectedProject(project); }}
+                                         className="text-left w-full group"
+                                       >
+                                         <h3 className={`text-sm line-clamp-2 leading-tight group-hover:text-orange-400 transition-colors ${titleFinal ? 'text-emerald-300 font-bold' : 'font-medium text-gray-200'}`} title={titleFinal || titleOriginal}>
+                                           {titleFinal ? `✨ ${titleFinal}` : titleOriginal}
+                                         </h3>
+                                       </button>
                                       <div className="flex gap-2 mt-2">
-                                        <Link href={`/hook?title=${encodeURIComponent(titleOriginal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-colors">
+                                        <Link 
+                                          onClick={(e) => e.stopPropagation()}
+                                          href={`/hook?title=${encodeURIComponent(titleOriginal)}&id=${project.id}`} 
+                                          className="text-[10px] px-2 py-1 rounded bg-white/5 text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-colors"
+                                        >
                                           🎣 Hook
                                         </Link>
-                                        <Link href={`/script?title=${encodeURIComponent(titleFinal || titleOriginal)}&id=${project.id}`} className="text-[10px] px-2 py-1 rounded bg-violet-900/30 text-violet-300 hover:text-white border border-violet-500/30 hover:bg-violet-800/50 transition-colors">
+                                        <Link 
+                                          onClick={(e) => e.stopPropagation()}
+                                          href={`/script?title=${encodeURIComponent(titleFinal || titleOriginal)}&id=${project.id}`} 
+                                          className="text-[10px] px-2 py-1 rounded bg-violet-900/30 text-violet-300 hover:text-white border border-violet-500/30 hover:bg-violet-800/50 transition-colors"
+                                        >
                                           📝 Script
                                         </Link>
                                       </div>
@@ -904,6 +959,15 @@ export default function LibraryPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {selectedProject && (
+        <ProjectDetailsModal
+          project={selectedProject}
+          channels={channels}
+          onClose={() => setSelectedProject(null)}
+          onSaved={handleProjectSaved}
+        />
       )}
     </div>
   );

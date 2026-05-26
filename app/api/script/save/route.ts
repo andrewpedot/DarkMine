@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
       idioma_narracao,
       cultura_alvo,
       reference_pdf,
+      // Neuromarketing parameters
+      nivel_consciencia,
+      inimigo_comum,
+      emocao_primaria,
+      tom_de_voz,
+      quantidade_blocos,
+      palavras_por_bloco,
     } = body;
 
     if (!titulo) {
@@ -40,6 +47,12 @@ export async function POST(request: NextRequest) {
       idioma_narracao: idioma_narracao || 'Português',
       cultura_alvo: cultura_alvo || 'Brasil',
       reference_pdf: reference_pdf || '',
+      nivel_consciencia: nivel_consciencia || 3,
+      inimigo_comum: inimigo_comum || '',
+      emocao_primaria: emocao_primaria || '',
+      tom_de_voz: tom_de_voz || '',
+      quantidade_blocos: quantidade_blocos || 5,
+      palavras_por_bloco: palavras_por_bloco || 200,
     };
 
     const scriptData = {
@@ -51,11 +64,17 @@ export async function POST(request: NextRequest) {
       conteudo: extendedConteudo,
       conteudo_raw: conteudo_raw || '',
       atualizado_em: new Date().toISOString(),
-      // Write to new columns directly (fallback if migration is not run)
+      // Write to new columns directly
       publico_alvo: publico_alvo || '',
       idioma_narracao: idioma_narracao || 'Português',
       cultura_alvo: cultura_alvo || 'Brasil',
       reference_pdf: reference_pdf || '',
+      nivel_consciencia: Number(nivel_consciencia) || 3,
+      inimigo_comum: inimigo_comum || '',
+      emocao_primaria: emocao_primaria || '',
+      tom_de_voz: tom_de_voz || '',
+      quantidade_blocos: Number(quantidade_blocos) || 5,
+      palavras_por_bloco: Number(palavras_por_bloco) || 200,
     };
 
     let result;
@@ -71,7 +90,20 @@ export async function POST(request: NextRequest) {
       if (error) {
         console.error('Update error, attempting fallback without new columns...', error);
         // Fallback: If new columns do not exist in the table yet, remove them and save only to JSON
-        const { publico_alvo, idioma_narracao, cultura_alvo, reference_pdf: ref_pdf, ...fallbackData } = scriptData;
+        const {
+          publico_alvo: pa,
+          idioma_narracao: in_,
+          cultura_alvo: ca,
+          reference_pdf: ref_pdf,
+          nivel_consciencia: nc,
+          inimigo_comum: ic,
+          emocao_primaria: ep,
+          tom_de_voz: tdv,
+          quantidade_blocos: qb,
+          palavras_por_bloco: ppb,
+          ...fallbackData
+        } = scriptData;
+        
         const { data: fbData, error: fbError } = await supabase
           .from('darkmine_scripts')
           .update(fallbackData)
@@ -100,7 +132,20 @@ export async function POST(request: NextRequest) {
       if (error) {
         console.error('Insert error, attempting fallback without new columns...', error);
         // Fallback: If new columns do not exist in the table yet, remove them and save only to JSON
-        const { publico_alvo, idioma_narracao, cultura_alvo, reference_pdf: ref_pdf, ...fallbackData } = scriptData;
+        const {
+          publico_alvo: pa,
+          idioma_narracao: in_,
+          cultura_alvo: ca,
+          reference_pdf: ref_pdf,
+          nivel_consciencia: nc,
+          inimigo_comum: ic,
+          emocao_primaria: ep,
+          tom_de_voz: tdv,
+          quantidade_blocos: qb,
+          palavras_por_bloco: ppb,
+          ...fallbackData
+        } = scriptData;
+        
         const { data: fbData, error: fbError } = await supabase
           .from('darkmine_scripts')
           .insert({

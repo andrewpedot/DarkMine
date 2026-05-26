@@ -180,6 +180,13 @@ function DarkScriptGenerator() {
   const [quantidadeTotalPalavras, setQuantidadeTotalPalavras] = useState(3000);
   const [referencePdf, setReferencePdf] = useState('');
   const [projectId, setProjectId] = useState<string | null>(null);
+  
+  // Neuromarketing & copywriting direct inputs
+  const [nivelConsciencia, setNivelConsciencia] = useState<number>(3);
+  const [inimigoComum, setInimigoComum] = useState<string>('');
+  const [emocaoPrimaria, setEmocaoPrimaria] = useState<string>('');
+  const [tomDeVoz, setTomDeVoz] = useState<string>('');
+  const [quantidadeBlocos, setQuantidadeBlocos] = useState<number>(5);
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState('');
@@ -298,6 +305,7 @@ function DarkScriptGenerator() {
           subnicho: subniche,
           contexto: channelContext,
           wordcount: quantidadeTotalPalavras,
+          id: projectId,
           conteudo: script,
           conteudo_raw: rawScript,
           // metadata fields
@@ -305,6 +313,13 @@ function DarkScriptGenerator() {
           idioma_narracao: idiomaNarracao,
           cultura_alvo: culturaAlvo,
           reference_pdf: referencePdf,
+          // Neuromarketing parameters
+          nivel_consciencia: nivelConsciencia,
+          inimigo_comum: inimigoComum,
+          emocao_primaria: emocaoPrimaria,
+          tom_de_voz: tomDeVoz,
+          quantidade_blocos: quantidadeBlocos,
+          palavras_por_bloco: Math.round(quantidadeTotalPalavras / quantidadeBlocos),
         }),
       });
       const data = await response.json();
@@ -378,6 +393,13 @@ function DarkScriptGenerator() {
       setIdiomaNarracao(content.idioma_narracao || savedScript.idioma_narracao || 'Português');
       setCulturaAlvo(content.cultura_alvo || savedScript.cultura_alvo || 'Brasil');
       
+      // Load neuromarketing parameters
+      setNivelConsciencia(content.nivel_consciencia || savedScript.nivel_consciencia || 3);
+      setInimigoComum(content.inimigo_comum || savedScript.inimigo_comum || '');
+      setEmocaoPrimaria(content.emocao_primaria || savedScript.emocao_primaria || '');
+      setTomDeVoz(content.tom_de_voz || savedScript.tom_de_voz || '');
+      setQuantidadeBlocos(content.quantidade_blocos || savedScript.quantidade_blocos || 5);
+      
       setGenerationStage('done');
 
       if (savedScript.conteudo.cenas) {
@@ -414,6 +436,13 @@ function DarkScriptGenerator() {
           reference_pdf: referencePdf || undefined,
           ref_transcripts: selectedChannel?.ref_transcripts?.length ? selectedChannel.ref_transcripts : undefined,
           ref_titles: selectedChannel?.ref_titles?.length ? selectedChannel.ref_titles : undefined,
+          // Neuromarketing parameters
+          nivel_consciencia: nivelConsciencia,
+          inimigo_comum: inimigoComum.trim() || undefined,
+          emocao_primaria: emocaoPrimaria.trim() || undefined,
+          tom_de_voz: tomDeVoz.trim() || undefined,
+          quantidade_blocos: quantidadeBlocos,
+          palavras_por_bloco: Math.round(quantidadeTotalPalavras / quantidadeBlocos),
         }),
       });
 
@@ -639,6 +668,124 @@ function DarkScriptGenerator() {
                   placeholder="Ex: Brasil"
                   className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
                 />
+              </div>
+            </div>
+
+            {/* Seção de Copywriting e Neuromarketing */}
+            <div className="border-t border-white/5 pt-6 mt-2">
+              <h3 className="text-sm font-bold text-violet-400 flex items-center gap-2 mb-5 uppercase tracking-wider">
+                <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Copywriting & Neuromarketing
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <FieldLabel>Emoção Primária Exigida</FieldLabel>
+                  <input
+                    type="text"
+                    value={emocaoPrimaria}
+                    onChange={e => setEmocaoPrimaria(e.target.value)}
+                    placeholder="Ex: Curiosidade Extrema, Medo de Ficar de Fora"
+                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                  />
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {['🧠 Curiosidade', '😨 Medo', '🤑 Ganância', '😡 Raiva', '😌 Esperança'].map(emo => (
+                      <button
+                        key={emo}
+                        type="button"
+                        onClick={() => setEmocaoPrimaria(emo.split(' ').slice(1).join(' '))}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-violet-600/30 hover:border-violet-500/50 transition-all"
+                      >
+                        {emo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>Tom de Voz</FieldLabel>
+                  <input
+                    type="text"
+                    value={tomDeVoz}
+                    onChange={e => setTomDeVoz(e.target.value)}
+                    placeholder="Ex: Documental Sério, Magnético, Energético"
+                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                  />
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                    {['🎙️ Documental', '🔥 Magnético', '🧠 Didático', '🎭 Irônico', '🤫 Misterioso'].map(tom => (
+                      <button
+                        key={tom}
+                        type="button"
+                        onClick={() => setTomDeVoz(tom.split(' ').slice(1).join(' '))}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-violet-600/30 hover:border-violet-500/50 transition-all"
+                      >
+                        {tom}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <FieldLabel>Inimigo Comum do Nicho</FieldLabel>
+                  <input
+                    type="text"
+                    value={inimigoComum}
+                    onChange={e => setInimigoComum(e.target.value)}
+                    placeholder="Ex: O Algoritmo, O Sistema Tradicional"
+                    className="w-full bg-transparent border-b border-white/20 px-0 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500 transition-colors placeholder-gray-600"
+                  />
+                </div>
+
+                <div>
+                  <FieldLabel>Nível de Consciência</FieldLabel>
+                  <div className="relative">
+                    <select
+                      value={nivelConsciencia}
+                      onChange={e => setNivelConsciencia(Number(e.target.value))}
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value={1} className="bg-[#0d1017]">1 - Totalmente Inconsciente</option>
+                      <option value={2} className="bg-[#0d1017]">2 - Sabe do Problema</option>
+                      <option value={3} className="bg-[#0d1017]">3 - Sabe da Solução</option>
+                      <option value={4} className="bg-[#0d1017]">4 - Sabe do Produto</option>
+                      <option value={5} className="bg-[#0d1017]">5 - Totalmente Consciente</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <FieldLabel>Qtd de Blocos</FieldLabel>
+                    <span className="text-[10px] font-mono text-violet-400">
+                      ~{Math.round(quantidadeTotalPalavras / quantidadeBlocos)} pal/bloco
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={quantidadeBlocos}
+                      onChange={e => setQuantidadeBlocos(Number(e.target.value))}
+                      className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-300 focus:outline-none focus:border-violet-500/60 transition-colors appearance-none cursor-pointer"
+                    >
+                      {[3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
+                        <option key={n} value={n} className="bg-[#0d1017]">{n} blocos</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

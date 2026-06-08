@@ -91,17 +91,25 @@ export async function POST(request: NextRequest) {
 
         if (channel.subscriberCount > maxSubscribers) continue;
 
-        // Canais jovens: máx 30 vídeos publicados
-        if (channel.totalVideos > 30) continue;
+        // Canais jovens: máx 50 vídeos publicados
+        if (channel.totalVideos > 50) continue;
 
-        // Vídeo deve ter no mínimo 10 minutos (600s); sem limite superior
-        if (video.durationSec > 0 && video.durationSec < 600) continue;
+        // Vídeo deve ter no mínimo 4 minutos (240s) — canais faceless costumam ter 5-8 min
+        if (video.durationSec > 0 && video.durationSec < 240) continue;
 
         const outlierMultiplier = calculateOutlierMultiplier(video.views, channel.subscriberCount);
-        if (outlierMultiplier < 1) continue;
+        // Mínimo 0.5x — não exige mais visualizações que inscritos, mas descarta vídeos sem tração
+        if (outlierMultiplier < 0.5) continue;
+
+        // Filtro por VPH (Visualizações Por Hora) — calculado com precisão usando horas reais
+        const hoursElapsed = Math.max(
+          (Date.now() - video.publishedAt.getTime()) / 3_600_000,
+          1
+        );
+        const vph = Math.floor(video.views / hoursElapsed);
+        if (vph < 100) continue; // mínimo 100 VPH
 
         const viewsPerDay = calculateViewsPerDay(video.views, video.publishedAt);
-        if (viewsPerDay < 500) continue;
 
         const facelessScore = computeFacelessScore(channel, videoDetails);
         const listaScore = computeListaScore(video.title);

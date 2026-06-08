@@ -38,6 +38,8 @@ const MOCK_CARDS = [
     vphRaw: 1800,
     outlierMultiplierRaw: 169,
     viewsRaw: 2100000,
+    viewsPerDay: 1800 * 24,
+    publishedAtRaw: new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString(),
   },
   {
     id: "mock-2",
@@ -63,6 +65,8 @@ const MOCK_CARDS = [
     vphRaw: 2300,
     outlierMultiplierRaw: 160,
     viewsRaw: 1400000,
+    viewsPerDay: 2300 * 24,
+    publishedAtRaw: new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString(),
   }
 ];
 
@@ -468,7 +472,7 @@ function VideoCard({ card }: { card: any }) {
          {/* Novas Badges do Radar de Anomalias */}
          <div className="flex flex-wrap gap-2 mt-2">
            <div className="bg-orange-950/40 border border-orange-500/50 text-orange-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1.5">
-             🔥 VPD: {card.viewsPerDay ? card.viewsPerDay.toLocaleString('pt-BR') : 0} views/dia
+             🔥 VPH: {card.vph || (card.vphRaw ? card.vphRaw.toLocaleString('pt-BR') : card.viewsPerDay ? Math.round(card.viewsPerDay / 24).toLocaleString('pt-BR') : '0')}
            </div>
            {card.syntheticMedia && (
              <div className="bg-green-950/40 border border-green-500/50 text-green-400 px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1.5">
@@ -704,33 +708,17 @@ export default function DarkMinePage() {
       return (b.outlierMultiplierRaw || 0) - (a.outlierMultiplierRaw || 0);
   });
 
-  const handleMine = async () => {
-    if (!searchQuery && activeNiche === 'Todos') {
-      setErrorMsg('Por favor, digite uma palavra-chave ou escolha um nicho específico.');
-      return;
-    }
+  const isTrendingMode = !searchQuery.trim();
 
+  const handleMine = async () => {
     setMining(true);
     setMined(false);
     setErrorMsg('');
 
     try {
-      const nicheMapping: Record<string, string> = {
-        'Finanças': 'personal finance OR investing OR money',
-        'True Crime': 'true crime OR unsolved mystery',
-        'Tech': 'technology OR artificial intelligence',
-        'História': 'history documentary OR historical facts',
-        'Psicologia': 'psychology OR body language',
-        'Geopolítica': 'geopolitics OR global economy',
-        'Estoicismo': 'stoicism OR philosophy',
-        'Espaço/Ciência': 'space documentary OR universe discovery',
-        'Todos': 'viral documentary OR story time OR case study'
-      };
-
-      const q = searchQuery || nicheMapping[activeNiche] || activeNiche;
       const limitSubs = parseInt(maxSubs, 10) || 50000;
-
-      const bestResults = await searchVideos(q, limitSubs, activeNiche, onlyAI);
+      // Passa a query do usuário (pode ser vazia — nesse caso a action usa query padrão por nicho)
+      const bestResults = await searchVideos(searchQuery.trim(), limitSubs, activeNiche, onlyAI);
 
       setCards(bestResults);
       setMined(true);
@@ -829,7 +817,7 @@ export default function DarkMinePage() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleMine()}
-                placeholder="Ex: conspiracy, finance collapse, true crime cold case..."
+                placeholder={isTrendingMode ? '🔥 Modo Trending — deixe vazio para ver o que o YouTube está recomendando agora' : 'Ex: conspiracy, finance collapse, true crime cold case...'}
                 className="input-dark w-full pl-10 pr-4 py-3 rounded-xl text-sm font-mono"
               />
             </div>
@@ -916,13 +904,13 @@ export default function DarkMinePage() {
                   Minerando Oportunidades...
                 </>
               ) : mined ? (
-                <>✅ {cards.length} Outliers Encontrados — Minerar Novamente</>
+                <>✅ {cards.length} Outliers Encontrados — {isTrendingMode ? 'Atualizar Trending' : 'Minerar Novamente'}</>
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Minerar Oportunidades
+                  {isTrendingMode ? '🔥 Ver Trending Agora' : 'Minerar Oportunidades'}
                 </>
               )}
             </button>

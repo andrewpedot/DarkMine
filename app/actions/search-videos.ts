@@ -39,19 +39,45 @@ const NICHE_DEFAULT_QUERY: Record<string, string> = {
   'Todos':          'documentary mystery exposed truth dark secret conspiracy untold',
 };
 
+// Query ampla para o pass de conteúdo mais recente (order=date, 7 dias)
+// Palavras curtas e comuns → captura mais títulos dark/faceless novos
+const NICHE_BROAD_QUERY: Record<string, string> = {
+  'Finanças':       'money dark fraud scam exposed documentary',
+  'True Crime':     'true crime murder case investigation documentary',
+  'Tech':           'technology dark secret exposed documentary',
+  'História':       'history untold story documentary hidden',
+  'Psicologia':     'psychology dark manipulation mind documentary',
+  'Geopolítica':    'government secret exposed conspiracy documentary',
+  'Estoicismo':     'truth philosophy wisdom dark documentary',
+  'Espaço/Ciência': 'space science mystery dark documentary',
+  'Todos':          'dark exposed secret mystery documentary story',
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // REGEX — filtros de título
 // ─────────────────────────────────────────────────────────────────────────────
 const REGEX_FACE_VISIBLE = /\b(vlog|podcast|unboxing|react|q&a|qna|storytime|story time|mukbang|get ready with me|grwm|haul|day in my life|watch me|my life|my story|my reaction|i tried|i spent|challenge|with me)\b/i;
 const REGEX_SHORTS = /#shorts?\b|\bshorts?\b$/i;
 
-// Palavras-chave positivas de títulos dark/faceless
-const DARK_TITLE_KEYWORDS = [
-  /\b(secret|hidden|exposed|untold|truth|shocking|revealed|conspiracy|dark|disturbing|mystery|unsolved|crime|murder|killed|disappeared|missing|cover.?up|forbidden|classified)\b/i,
-  /\b(documentary|investigation|case|story|history|footage|evidence|caught|arrested|sentenced|executed|verdict)\b/i,
-  /\b(billionaire|millionaire|empire|scheme|scam|fraud|heist|scandal|downfall|rise and fall)\b/i,
-  /\b(psychology|manipulation|control|narcissist|sociopath|psychopath|dark side|mind|experiment)\b/i,
-];
+// Filtro de música — elimina clipes, letras, áudios oficiais
+const REGEX_MUSIC = /\b(official audio|official video|official music video|music video|lyrics?|letra|video oficial|audio oficial|official lyric|lyric video|visualizer|album|single|ft\.|feat\.)\b|\bofficial\b.*\b(audio|video)\b/i;
+
+// Filtro de idioma — exige inglês: bloqueia títulos com stopwords comuns de espanhol/português
+const REGEX_NON_ENGLISH_TITLE = /\b(el |la |los |las |fue |para |como |pero |este |esto |eso |una |del |con |por |que |des |sur |les |pour |dans |avec |une |van |het |die |der |das |und |nicht |ist |sein )\b|\b(não|também|muito|aqui|isso|tudo|seus|suas|nosso|nossa|pelo|pela|como|quando|onde|quem|nada|cada|outro|outra)\b/i;
+
+// Regex única e ampla de títulos dark/faceless
+// Cobre: crime, investigação, documentário, psicologia, poder, violência, suspense
+// Intencionalmente abrangente para reduzir falsos negativos
+const DARK_TITLE_RE =
+  /\b(secret\w*|hidden|hide|hid|exposed?|untold|truth|shocking|reveal\w*|conspiracy|dark|disturb\w*|mystery|mysterious|unsolved|crime|criminal|murder\w*|killer?s?|kill(?:ed|ing|s)?|disappear\w*|missing|cover.?up|forbidden|classif\w*|trapped|dead|death|died|dying|deadly|dangerous|chill\w*|haunt\w*|terrif\w*|sinister|bizarre|eerie|twisted|horrify\w*|gruesome|brutal)\b/i;
+const DARK_TITLE_RE2 =
+  /\b(documentary|documentaries|investigat\w+|case|cases|story|stories|history|footage|evidence|caught|arrest\w*|sentenced|execut\w+|verdict|confession|testimony|trial|lawsuit|incident|tragedy|disaster|collapse|breakdown|aftermath|cold.?case|reopened|exposed|body|bodies|remains|bones?|chop\w*|dismember\w*|bury|buried|shallow grave|crime scene)\b/i;
+const DARK_TITLE_RE3 =
+  /\b(billionaire|millionaire|empire|scheme|scam|fraud|heist|scandal|downfall|rise and fall|ruin\w*|destroy\w*|corrupt\w*|laundering|cartel|mafia|mob|gang|kingpin|infiltrat\w*)\b/i;
+const DARK_TITLE_RE4 =
+  /\b(psycholog\w*|manipulat\w*|narcissist|sociopath|psychopath|dark side|experiment|cults?|escap\w+|surviv\w+|victim|predator|groom\w*|stalker?|stalking|obsess\w*|abduct\w*|kidnap\w*)\b/i;
+const DARK_TITLE_RE5 =
+  /\b(war|battle|nuclear|biological|chemical|weapon|attack|bombing|genocide|massacre|assassin\w*|terror\w*|extremist|radical|spy\w*|agent|intel|operation|fbi|cia|police|detective|hunt\w*|violent\w*|violence|robb\w+|prison|jail|fugitive|escaped|suspect|guilty|convicted|sentenced|slain|slaughter\w*|corpse|body parts)\b/i;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILS
@@ -140,10 +166,10 @@ function scoreFacelessChannel(channel: any, video: any): number {
 
   // Sinal E: Palavras-chave dark no título
   let darkMatches = 0;
-  for (const re of DARK_TITLE_KEYWORDS) {
+  for (const re of [DARK_TITLE_RE, DARK_TITLE_RE2, DARK_TITLE_RE3, DARK_TITLE_RE4, DARK_TITLE_RE5]) {
     if (re.test(videoTitle)) darkMatches++;
   }
-  score += darkMatches * 15; // até +60
+  score += darkMatches * 10; // até +50
 
   // Sinal F: IA declarada (bônus máximo quando disponível)
   if (video.status?.containsSyntheticMedia === true) score += 50;
@@ -192,7 +218,13 @@ async function fetchMostPopular(apiKey: string, categoryId?: string): Promise<an
 // order=viewCount: retorna os vídeos MAIS ASSISTIDOS do período (não por relevância).
 // Isso encontra canais pequenos com views altas = sinal que o algoritmo está empurrando.
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchByKeyword(apiKey: string, query: string, publishedAfterDays = 90): Promise<any[]> {
+async function fetchByKeyword(
+  apiKey: string,
+  query: string,
+  publishedAfterDays = 14,
+  order: 'relevance' | 'date' | 'viewCount' = 'relevance',
+  maxPages = 2,
+): Promise<any[]> {
   const after = new Date();
   after.setDate(after.getDate() - publishedAfterDays);
 
@@ -200,7 +232,7 @@ async function fetchByKeyword(apiKey: string, query: string, publishedAfterDays 
   const searchItems: any[] = [];
   let pageToken = '';
 
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < maxPages; i++) {
     const params = new URLSearchParams({
       part: 'snippet',
       maxResults: '50',
@@ -208,7 +240,7 @@ async function fetchByKeyword(apiKey: string, query: string, publishedAfterDays 
       type: 'video',
       regionCode: 'US',
       relevanceLanguage: 'en',
-      order: 'viewCount',           // ← Mais assistidos primeiro (não relevância)
+      order,  // relevance = engagement velocity/CTR | date = mais recente primeiro | viewCount = mais vistos
       publishedAfter: after.toISOString(),
       key: apiKey,
     });
@@ -275,10 +307,18 @@ function buildCard(video: any, channel: any, now: Date): any | null {
   // Filtros negativos de título
   if (REGEX_FACE_VISIBLE.test(videoTitle)) return null;
   if (REGEX_SHORTS.test(videoTitle)) return null;
+  if (REGEX_MUSIC.test(videoTitle)) return null;
+  if (REGEX_NON_ENGLISH_TITLE.test(videoTitle)) return null;
 
-  // Duração: descartar Shorts (< 3 min)
+  // Exige pelo menos UMA keyword dark no título — garante conteúdo documentary/faceless
+  const hasDarkKeyword = DARK_TITLE_RE.test(videoTitle) || DARK_TITLE_RE2.test(videoTitle) ||
+    DARK_TITLE_RE3.test(videoTitle) || DARK_TITLE_RE4.test(videoTitle) || DARK_TITLE_RE5.test(videoTitle);
+  if (!hasDarkKeyword) return null;
+
+  // Duração: descartar Shorts (< 3 min) e vídeos muito longos (> 60 min = stream/podcast)
   const durationSec = parseDuration(video.contentDetails?.duration || '');
   if (durationSec > 0 && durationSec < 180) return null;
+  if (durationSec > 3600) return null;
 
   const subsRaw = parseInt(channel.statistics?.subscriberCount || '0', 10);
   const videoCount = parseInt(channel.statistics?.videoCount || '0', 10);
@@ -349,7 +389,7 @@ function applyFilters(card: any, maxSubs: number, onlyAI: boolean): boolean {
   if (!card) return false;
   if (card.subscribersRaw > maxSubs) return false;
   const videoCount = card._videoCount || 0; // já filtrado antes do buildCard
-  if (card.vphRaw < 100) return false;
+  if (card.vphRaw < 50) return false;   // ~16K views em 14 dias = aceleração real
   if (card._outlier < 0.5) return false;
   if (card._faceless < 20) return false;
   if (onlyAI && !card.syntheticMedia) return false;
@@ -374,20 +414,34 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
   // Custo total: ~204 unidades (200 search + ~4 channels)
   // order=viewCount: encontra os mais assistidos que contêm a keyword no período
 
-  const [trendingVideos, keywordVideos] = await Promise.all([
-    // Fonte 1: chart=mostPopular — sempre executado, custo irrisório (~4 unidades)
-    fetchMostPopular(apiKey, NICHE_CATEGORY[niche]).catch(() => [] as any[]),
+  // Para "Todos" sem keyword: mostPopular traz lixo (música viral, etc.)
+  // Só usar mostPopular quando um nicho específico está selecionado (tem categoria mapeada)
+  const useMostPopular = NICHE_CATEGORY[niche] != null;
 
-    // Fonte 2: keyword search
+  const broadQuery = NICHE_BROAD_QUERY[niche] || NICHE_BROAD_QUERY['Todos'];
+  const nicheQuery = NICHE_DEFAULT_QUERY[niche] || NICHE_DEFAULT_QUERY['Todos'];
+
+  const [trendingVideos, keywordVideos, freshVideos] = await Promise.all([
+    // Fonte 1: chart=mostPopular — só para nichos com categoria definida (ultra barato: ~4 unidades)
+    useMostPopular
+      ? fetchMostPopular(apiKey, NICHE_CATEGORY[niche]).catch(() => [] as any[])
+      : Promise.resolve([] as any[]),
+
+    // Fonte 2: viewCount, 30 dias — os mais assistidos no nicho, canais pequenos que viralizaram
     hasKeyword
-      ? fetchByKeyword(apiKey, query, 90)                      // keyword do usuário
-      : fetchByKeyword(apiKey, NICHE_DEFAULT_QUERY[niche] || NICHE_DEFAULT_QUERY['Todos'], 90), // query automática por nicho
+      ? fetchByKeyword(apiKey, query, 30, 'viewCount')
+      : fetchByKeyword(apiKey, nicheQuery, 30, 'viewCount'),
+
+    // Fonte 3: relevância, 14 dias — o que o YouTube está recomendando ativamente agora
+    hasKeyword
+      ? fetchByKeyword(apiKey, query, 14, 'relevance', 1)
+      : fetchByKeyword(apiKey, broadQuery, 14, 'relevance', 1),
   ]);
 
   // ── Deduplicar por ID de vídeo ───────────────────────────────────────────
   const seen = new Set<string>();
   const allVideos: any[] = [];
-  for (const v of [...trendingVideos, ...keywordVideos]) {
+  for (const v of [...trendingVideos, ...keywordVideos, ...freshVideos]) {
     if (v?.id && !seen.has(v.id)) {
       seen.add(v.id);
       allVideos.push(v);
@@ -407,9 +461,11 @@ export async function searchVideos(query: string, maxSubs: number, niche: string
     const channel = channelMap.get(video.snippet?.channelId);
     if (!channel) continue;
 
-    // Filtro de total de vídeos do canal: canais jovens têm poucos vídeos
+    // Filtro de total de vídeos do canal
+    // Limite de 200: canais com centenas de vídeos são fábricas de conteúdo, não dark focado
+    // 200 = ~4 anos de conteúdo semanal, razoável para canal estabelecido mas pequeno
     const videoCount = parseInt(channel.statistics?.videoCount || '0', 10);
-    if (videoCount > 50) continue;
+    if (videoCount > 200) continue;
 
     const card = buildCard(video, channel, now);
     if (!card) continue;

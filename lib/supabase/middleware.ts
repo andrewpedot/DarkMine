@@ -2,6 +2,12 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  // Login desativado em desenvolvimento local para agilizar testes manuais.
+  // Em produção (Netlify) o gate de auth continua ativo normalmente.
+  if (process.env.NODE_ENV !== 'production') {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });

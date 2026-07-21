@@ -683,18 +683,7 @@ export default function DarkMinePage() {
   const [postFilter, setPostFilter] = useState<'Todos' | 'Evergreen' | 'Hype'>('Todos');
   const [errorMsg, setErrorMsg] = useState('');
   const [cards, setCards] = useState<any[]>(MOCK_CARDS);
-  const [libraryCount, setLibraryCount] = useState(0);
   const [onlyAI, setOnlyAI] = useState(false);
-
-  useEffect(() => {
-      const updateCount = () => {
-          const lib = JSON.parse(localStorage.getItem('darkmine_library') || '[]');
-          setLibraryCount(lib.filter((c: any) => c.libraryStatus === 'Pendente').length);
-      };
-      updateCount();
-      window.addEventListener('libraryUpdated', updateCount);
-      return () => window.removeEventListener('libraryUpdated', updateCount);
-  }, []);
 
   const displayCards = [...cards].filter(c => {
       const now = new Date();
@@ -761,22 +750,13 @@ export default function DarkMinePage() {
               </svg>
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-gradient-purple">DarkMine</span>
+              <span className="text-xl font-black tracking-tight text-gradient-purple">Dark Miner</span>
               <span className="ml-2 text-[10px] font-mono text-purple-500/70 uppercase tracking-widest hidden sm:inline">Intelligence</span>
             </div>
           </div>
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <Link href="/library" className="relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-300 border border-white/10 transition-all hover:border-purple-500/40 hover:text-purple-300 hover:bg-purple-950/20">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              Biblioteca
-              {libraryCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-gray-900 shadow-[0_0_8px_rgba(168,85,247,0.6)]">
-                      {libraryCount}
-                  </span>
-              )}
-            </Link>
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[11px] font-mono text-emerald-400">API Conectada</span>
@@ -966,7 +946,7 @@ export default function DarkMinePage() {
           <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-xs text-gray-600 font-mono">DarkMine v1.0 Alpha · Conectado à API do YouTube</span>
+          <span className="text-xs text-gray-600 font-mono">Dark Miner v1.0 Alpha · Conectado à API do YouTube</span>
         </div>
       </main>
 

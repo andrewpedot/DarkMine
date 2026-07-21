@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: 'DarkMine — Inteligência de Mercado para Criadores Dark YouTube',
+  title: 'Dark Mine — Cockpit de Gestão do Portfólio de Canais Dark',
   description: 'Descubra oportunidades ocultas no YouTube com inteligência de dados. Mineração de nichos dark, análise de outliers e arbitragem de conteúdo para criadores estratégicos.',
   keywords: 'youtube, dark channels, market intelligence, content creation, outlier analysis, nicho dark',
 };
@@ -30,7 +30,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen" style={{ backgroundColor: '#080b12' }}>
         <Sidebar />
-        <main className="pl-16">
+        <main className="pl-14">
           {children}
         </main>
         <Toaster />

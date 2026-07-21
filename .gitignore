@@ -34,3 +34,6 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Claude Code worktrees (local session artifacts, not part of the app)
+.claude/worktrees/

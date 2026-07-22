@@ -8,12 +8,15 @@ import { EditChannelModal } from '@/components/workflow/EditChannelModal';
 import { VideoModal } from '@/components/workflow/VideoModal';
 import { ScheduleCalendar } from '@/components/workflow/ScheduleCalendar';
 import { PublishModal } from '@/components/workflow/PublishModal';
-import type { Channel, ScheduledVideo } from '@/types/database';
+import { STATUS_LABELS } from '@/lib/scheduleStatus';
+import { SelectMenu } from '@/components/ui/select-menu';
+import type { Channel, ScheduledVideo, VideoPipelineStatus } from '@/types/database';
 
 export default function WorkflowPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [videos, setVideos] = useState<ScheduledVideo[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>('todos');
+  const [statusFilter, setStatusFilter] = useState<'todos' | VideoPipelineStatus>('todos');
   const [loading, setLoading] = useState(true);
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
@@ -31,7 +34,9 @@ export default function WorkflowPage() {
     refresh();
   }, [refresh]);
 
-  const filteredVideos = selectedChannelId === 'todos' ? videos : videos.filter((v) => v.channel_id === selectedChannelId);
+  const filteredVideos = videos
+    .filter((v) => selectedChannelId === 'todos' || v.channel_id === selectedChannelId)
+    .filter((v) => statusFilter === 'todos' || v.status === statusFilter);
   const activeChannels = selectedChannelId === 'todos' ? channels : channels.filter((c) => c.id === selectedChannelId);
 
   return (
@@ -43,18 +48,25 @@ export default function WorkflowPage() {
             <p className="text-sm text-gray-500 mt-1">Cronograma e atividades do seu portfólio de canais</p>
           </div>
           <div className="flex items-center gap-3">
-            <select
+            <SelectMenu
               value={selectedChannelId}
-              onChange={(e) => setSelectedChannelId(e.target.value)}
-              className="rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
-            >
-              <option value="todos" className="bg-[#0d1117]">Todos os canais</option>
-              {channels.map((c) => (
-                <option key={c.id} value={c.id} className="bg-[#0d1117]">
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedChannelId}
+              options={[
+                { value: 'todos', label: 'Todos os canais' },
+                ...channels.map((c) => ({ value: c.id, label: c.name, dotColor: c.color })),
+              ]}
+            />
+            <SelectMenu
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as 'todos' | VideoPipelineStatus)}
+              options={[
+                { value: 'todos', label: 'Todos os status' },
+                ...(Object.keys(STATUS_LABELS) as VideoPipelineStatus[]).map((s) => ({
+                  value: s,
+                  label: STATUS_LABELS[s],
+                })),
+              ]}
+            />
             <button
               onClick={() => setShowAddChannel(true)}
               className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2.5 transition-colors flex items-center gap-2"

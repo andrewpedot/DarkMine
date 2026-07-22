@@ -7,6 +7,7 @@ import { getChannelAuthStatus, disconnectChannel } from '@/app/actions/youtube-a
 import { listLatestMetricsByChannel } from '@/app/actions/metrics';
 import { syncChannelMetrics } from '@/app/actions/youtube-sync';
 import { StatTile } from '@/components/dashboard/StatTile';
+import { SelectMenu } from '@/components/ui/select-menu';
 import type { Channel, ScheduledVideo, VideoMetric } from '@/types/database';
 
 function formatPct(n: number | null): string {
@@ -104,17 +105,11 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500 mt-1">Métricas e insights de performance por canal</p>
           </div>
           <div className="flex items-center gap-3">
-            <select
+            <SelectMenu
               value={selectedChannelId}
-              onChange={(e) => setSelectedChannelId(e.target.value)}
-              className="rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500/50"
-            >
-              {channels.map((c) => (
-                <option key={c.id} value={c.id} className="bg-[#0d1117]">
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedChannelId}
+              options={channels.map((c) => ({ value: c.id, label: c.name, dotColor: c.color }))}
+            />
 
             {connected ? (
               <>

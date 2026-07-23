@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { listChannels } from '@/app/actions/channels';
 import { listScheduledVideos } from '@/app/actions/schedule';
 import { getChannelAuthStatus, disconnectChannel } from '@/app/actions/youtube-auth';
-import { listLatestMetricsByChannel } from '@/app/actions/metrics';
+import { listMetricsAtAge } from '@/app/actions/metrics';
 import { syncChannelMetrics } from '@/app/actions/youtube-sync';
 import { StatTile } from '@/components/dashboard/StatTile';
 import { SelectMenu } from '@/components/ui/select-menu';
@@ -18,6 +18,22 @@ function formatNumber(n: number | null): string {
   return n === null ? '—' : n.toLocaleString('pt-BR');
 }
 
+const AGE_OPTIONS = [
+  { value: 'latest', label: 'Mais recente' },
+  { value: '1', label: '24 horas' },
+  { value: '3', label: '3 dias' },
+  { value: '7', label: '7 dias' },
+];
+
+/** 🟢/🟡/🔴 comparando a retenção do vídeo com a média do canal no mesmo corte de idade. */
+function healthFlag(avgViewDuration: number | null | undefined, channelAvg: number | null): string {
+  if (!avgViewDuration || !channelAvg) return '⚪';
+  const ratio = avgViewDuration / channelAvg;
+  if (ratio >= 1.1) return '🟢';
+  if (ratio >= 0.85) return '🟡';
+  return '🔴';
+}
+
 export default function DashboardPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
@@ -28,6 +44,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState('');
   const [syncMessage, setSyncMessage] = useState('');
+  const [ageFilter, setAgeFilter] = useState('latest');
 
   useEffect(() => {
     listChannels().then((ch) => {
@@ -37,20 +54,22 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const loadChannelData = useCallback(async (channelId: string) => {
+  const loadChannelData = useCallback(async (channelId: string, targetDays: number | null) => {
     const [isConnected, videos, latestMetrics] = await Promise.all([
       getChannelAuthStatus(channelId),
       listScheduledVideos(channelId),
-      listLatestMetricsByChannel(channelId),
+      listMetricsAtAge(channelId, targetDays),
     ]);
     setConnected(isConnected);
     setPublishedVideos(videos.filter((v) => v.status === 'publicado'));
     setMetrics(latestMetrics);
   }, []);
 
+  const targetDays = ageFilter === 'latest' ? null : Number(ageFilter);
+
   useEffect(() => {
-    if (selectedChannelId) loadChannelData(selectedChannelId);
-  }, [selectedChannelId, loadChannelData]);
+    if (selectedChannelId) loadChannelData(selectedChannelId, targetDays);
+  }, [selectedChannelId, targetDays, loadChannelData]);
 
   const selectedChannel = channels.find((c) => c.id === selectedChannelId);
 
@@ -70,10 +89,22 @@ export default function DashboardPage() {
     ? metrics.reduce((sum, m) => sum + (m.avg_view_duration_sec ?? 0), 0) / metrics.filter((m) => m.avg_view_duration_sec != null).length || null
     : null;
 
+  const watchTimeTotalMinutes = metrics.reduce((sum, m) => sum + (m.watch_time_minutes ?? 0), 0);
+
+  const totalSubsGained = metrics.reduce((sum, m) => sum + (m.subscribers_gained ?? 0), 0);
+  const totalViewsForSubs = metrics.reduce((sum, m) => sum + (m.views ?? 0), 0);
+  const subsConversionRate = totalViewsForSubs > 0 ? (totalSubsGained / totalViewsForSubs) * 1000 : null;
+
+  const totalSearchViews = metrics.reduce((sum, m) => sum + (m.traffic_search_views ?? 0), 0);
+  const totalSuggestedViews = metrics.reduce((sum, m) => sum + (m.traffic_suggested_views ?? 0), 0);
+  const totalTrafficViews = totalSearchViews + totalSuggestedViews;
+  const searchPct = totalTrafficViews > 0 ? (totalSearchViews / totalTrafficViews) * 100 : null;
+  const suggestedPct = totalTrafficViews > 0 ? (totalSuggestedViews / totalTrafficViews) * 100 : null;
+
   async function handleDisconnect() {
     if (!selectedChannelId) return;
     await disconnectChannel(selectedChannelId);
-    loadChannelData(selectedChannelId);
+    loadChannelData(selectedChannelId, targetDays);
   }
 
   async function handleSync() {
@@ -88,7 +119,7 @@ export default function DashboardPage() {
           ? `Sincronizado: ${result.synced} vídeo${result.synced !== 1 ? 's' : ''} atualizado${result.synced !== 1 ? 's' : ''}.`
           : 'Nenhum vídeo publicado com URL do YouTube para sincronizar.'
       );
-      await loadChannelData(selectedChannelId);
+      await loadChannelData(selectedChannelId, targetDays);
     } catch (e: any) {
       setSyncError(e.message || 'Erro ao sincronizar com o YouTube.');
     } finally {
@@ -110,6 +141,10 @@ export default function DashboardPage() {
               onChange={setSelectedChannelId}
               options={channels.map((c) => ({ value: c.id, label: c.name, dotColor: c.color }))}
             />
+
+            {connected && (
+              <SelectMenu value={ageFilter} onChange={setAgeFilter} options={AGE_OPTIONS} />
+            )}
 
             {connected ? (
               <>
@@ -175,12 +210,42 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-3 gap-4">
               <StatTile label="CTR médio" value={formatPct(avgCtr)} hint={`${publishedVideos.length} vídeos publicados`} />
-              <StatTile label="Views médias" value={formatNumber(avgViews)} hint="por vídeo, última sincronização" />
+              <StatTile label="Views médias" value={formatNumber(avgViews)} hint="por vídeo, nesse corte" />
               <StatTile
                 label="Retenção média"
                 value={avgRetention ? `${Math.round(avgRetention / 60)}min` : '—'}
                 hint="duração média assistida"
               />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <StatTile
+                label="Watch Time total"
+                value={watchTimeTotalMinutes ? `${Math.round(watchTimeTotalMinutes).toLocaleString('pt-BR')}min` : '—'}
+                hint="soma de todos os vídeos, nesse corte"
+              />
+              <StatTile
+                label="Conversão em inscritos"
+                value={subsConversionRate !== null ? `${subsConversionRate.toFixed(2)} / 1k views` : '—'}
+                hint="inscritos ganhos a cada 1.000 views"
+              />
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col gap-2">
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Fontes de tráfego</span>
+                {searchPct === null ? (
+                  <span className="text-sm text-gray-600">—</span>
+                ) : (
+                  <>
+                    <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
+                      <div className="bg-indigo-500" style={{ width: `${searchPct}%` }} />
+                      <div className="bg-cyan-500" style={{ width: `${suggestedPct ?? 0}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-indigo-400">Busca {searchPct.toFixed(0)}%</span>
+                      <span className="text-cyan-400">Sugeridos {(suggestedPct ?? 0).toFixed(0)}%</span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
@@ -244,6 +309,7 @@ export default function DashboardPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-gray-500 border-b border-white/5">
+                      <th className="px-5 py-2 font-medium text-center">Status</th>
                       <th className="px-5 py-2 font-medium">Título</th>
                       <th className="px-5 py-2 font-medium">Publicado em</th>
                       <th className="px-5 py-2 font-medium text-right">Views</th>
@@ -255,6 +321,9 @@ export default function DashboardPage() {
                       const m = metrics.find((met) => met.scheduled_video_id === v.id);
                       return (
                         <tr key={v.id} className="border-b border-white/5 text-gray-300">
+                          <td className="px-5 py-2.5 text-center" title="Diagnóstico de retenção frente à média do canal">
+                            {healthFlag(m?.avg_view_duration_sec, avgRetention)}
+                          </td>
                           <td className="px-5 py-2.5 truncate max-w-xs">{v.title}</td>
                           <td className="px-5 py-2.5 text-gray-500">
                             {v.published_at ? new Date(v.published_at).toLocaleDateString('pt-BR') : '—'}

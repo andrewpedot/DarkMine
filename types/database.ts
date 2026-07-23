@@ -52,6 +52,9 @@ export interface VideoMetric {
   likes?: number
   comments?: number
   impressions?: number
+  subscribers_gained?: number
+  traffic_search_views?: number
+  traffic_suggested_views?: number
 }
 
 export interface ChannelCharacter {

@@ -73,6 +73,35 @@ function rowsToMap(json: any): Map<string, Record<string, number>> {
   return map;
 }
 
+async function queryTrafficSources(accessToken: string, startDate: string, endDate: string, videoIds: string) {
+  const url = new URL('https://youtubeanalytics.googleapis.com/v2/reports');
+  url.searchParams.set('ids', 'channel==MINE');
+  url.searchParams.set('startDate', startDate);
+  url.searchParams.set('endDate', endDate);
+  url.searchParams.set('metrics', 'views');
+  url.searchParams.set('dimensions', 'video,insightTrafficSourceType');
+  url.searchParams.set('filters', `video==${videoIds}`);
+  return fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+}
+
+function aggregateTrafficSources(json: any): Map<string, { search: number; suggested: number }> {
+  const headers: string[] = (json.columnHeaders || []).map((h: any) => h.name);
+  const videoIdx = headers.indexOf('video');
+  const sourceIdx = headers.indexOf('insightTrafficSourceType');
+  const viewsIdx = headers.indexOf('views');
+  const map = new Map<string, { search: number; suggested: number }>();
+  for (const row of json.rows || []) {
+    const videoId = row[videoIdx];
+    const source = row[sourceIdx];
+    const views = Number(row[viewsIdx] ?? 0);
+    const entry = map.get(videoId) ?? { search: 0, suggested: 0 };
+    if (source === 'YT_SEARCH') entry.search += views;
+    else if (source === 'SUGGESTED_VIDEO' || source === 'BROWSE_FEATURES') entry.suggested += views;
+    map.set(videoId, entry);
+  }
+  return map;
+}
+
 export async function syncChannelMetrics(channelId: string): Promise<{ synced: number }> {
   const supabase = createAdminClient();
   const accessToken = await getValidAccessToken(channelId);
@@ -115,12 +144,33 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
     console.warn('[youtube-sync] impressões/CTR indisponíveis:', await ctrResp.text());
   }
 
+  // Inscritos ganhos — chamada isolada por precaução, já que combinações de métricas
+  // podem pertencer a grupos diferentes na Analytics API (mesmo padrão do CTR acima).
+  let subsData = new Map<string, Record<string, number>>();
+  const subsResp = await queryAnalytics(accessToken, startDate, today, videoIds, 'subscribersGained');
+  if (subsResp.ok) {
+    subsData = rowsToMap(await subsResp.json());
+  } else {
+    console.warn('[youtube-sync] subscribersGained indisponível:', await subsResp.text());
+  }
+
+  // Fontes de tráfego (busca vs. sugeridos/navegação) — dimensão extra, então usa parsing próprio.
+  let trafficData = new Map<string, { search: number; suggested: number }>();
+  const trafficResp = await queryTrafficSources(accessToken, startDate, today, videoIds);
+  if (trafficResp.ok) {
+    trafficData = aggregateTrafficSources(await trafficResp.json());
+  } else {
+    console.warn('[youtube-sync] fontes de tráfego indisponíveis:', await trafficResp.text());
+  }
+
   const now = new Date();
   const metricsToInsert = videos
     .filter((v) => baseData.has(v.youtube_video_id!))
     .map((video) => {
       const base = baseData.get(video.youtube_video_id!)!;
       const ctr = ctrData.get(video.youtube_video_id!);
+      const subs = subsData.get(video.youtube_video_id!);
+      const traffic = trafficData.get(video.youtube_video_id!);
       const daysSincePublished = video.published_at
         ? Math.floor((now.getTime() - new Date(video.published_at).getTime()) / 86_400_000)
         : null;
@@ -135,6 +185,9 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
         comments: base.comments ?? 0,
         impressions: ctr?.videoThumbnailImpressions ?? null,
         ctr: ctrFraction !== undefined ? Number((ctrFraction * 100).toFixed(2)) : null,
+        subscribers_gained: subs?.subscribersGained ?? null,
+        traffic_search_views: traffic?.search ?? null,
+        traffic_suggested_views: traffic?.suggested ?? null,
       };
     });
 

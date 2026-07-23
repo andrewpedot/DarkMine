@@ -22,7 +22,10 @@ export function VideoCard({ video, channel, displayNumber, onEdit, onChanged, on
       onRequestPublish(video);
       return;
     }
-    await updateScheduledVideo(video.id, { status: next });
+    const updates = next === 'publicado' && !video.published_at
+      ? { status: next, published_at: new Date().toISOString() }
+      : { status: next };
+    await updateScheduledVideo(video.id, updates);
     onChanged();
   }
 

@@ -57,15 +57,17 @@ export function KanbanBoard({ channels, videos, onEdit, onChanged, onRequestPubl
     const newStatus = result.destination.droppableId as VideoPipelineStatus;
     if (newStatus === result.source.droppableId) return;
 
+    let publishedAt: string | undefined;
     if (newStatus === 'publicado') {
       const video = videos.find((v) => v.id === result.draggableId);
       if (video && !video.youtube_video_id) {
         onRequestPublish(video);
         return;
       }
+      if (video && !video.published_at) publishedAt = new Date().toISOString();
     }
 
-    await updateScheduledVideo(result.draggableId, { status: newStatus });
+    await updateScheduledVideo(result.draggableId, { status: newStatus, ...(publishedAt ? { published_at: publishedAt } : {}) });
     onChanged();
   }
 

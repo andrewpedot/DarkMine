@@ -103,12 +103,12 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
 
   const baseData = rowsToMap(await resp.json());
 
-  // Impressões/CTR de miniatura pertencem a um grupo de métricas separado na API — se misturadas
-  // com as métricas básicas na mesma chamada, o Google rejeita com "Unknown identifier". Por isso
-  // vai numa chamada isolada, e se ainda assim falhar (conta sem acesso a esse relatório), seguimos
+  // Impressões/CTR de miniatura usam nomes de metric próprios (adicionados pelo Google em
+  // jan/2026) e pertencem a um grupo separado das métricas básicas — por isso vão numa
+  // chamada isolada, e se ainda assim falharem (conta sem acesso a esse relatório), seguimos
   // sem CTR em vez de derrubar a sincronização inteira.
   let ctrData = new Map<string, Record<string, number>>();
-  const ctrResp = await queryAnalytics(accessToken, startDate, today, videoIds, 'impressions,impressionsClickThroughRate');
+  const ctrResp = await queryAnalytics(accessToken, startDate, today, videoIds, 'videoThumbnailImpressions,videoThumbnailImpressionsClickRate');
   if (ctrResp.ok) {
     ctrData = rowsToMap(await ctrResp.json());
   } else {
@@ -124,7 +124,7 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
       const daysSincePublished = video.published_at
         ? Math.floor((now.getTime() - new Date(video.published_at).getTime()) / 86_400_000)
         : null;
-      const ctrFraction = ctr?.impressionsClickThroughRate;
+      const ctrFraction = ctr?.videoThumbnailImpressionsClickRate;
       return {
         scheduled_video_id: video.id,
         days_since_published: daysSincePublished,
@@ -133,7 +133,7 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
         avg_view_duration_sec: base.averageViewDuration ?? 0,
         likes: base.likes ?? 0,
         comments: base.comments ?? 0,
-        impressions: ctr?.impressions ?? null,
+        impressions: ctr?.videoThumbnailImpressions ?? null,
         ctr: ctrFraction !== undefined ? Number((ctrFraction * 100).toFixed(2)) : null,
       };
     });

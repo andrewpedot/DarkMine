@@ -1,52 +1,8 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getValidAccessToken } from '@/lib/youtube-token';
 import { revalidatePath } from 'next/cache';
-
-async function getValidAccessToken(channelId: string): Promise<string> {
-  const supabase = createAdminClient();
-  const { data: auth, error } = await supabase
-    .from('channel_youtube_auth')
-    .select('*')
-    .eq('channel_id', channelId)
-    .single();
-
-  if (error || !auth) throw new Error('Canal não conectado ao YouTube.');
-
-  const expiresAt = new Date(auth.expires_at).getTime();
-  if (expiresAt > Date.now() + 60_000) {
-    return auth.access_token;
-  }
-
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  if (!clientId || !clientSecret) throw new Error('GOOGLE_OAUTH_CLIENT_ID/SECRET não configurados.');
-
-  const resp = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: auth.refresh_token,
-      grant_type: 'refresh_token',
-    }),
-  });
-
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`Falha ao renovar o token do YouTube — reconecte o canal. (${body})`);
-  }
-
-  const tokens = await resp.json();
-  const newExpiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
-  await supabase
-    .from('channel_youtube_auth')
-    .update({ access_token: tokens.access_token, expires_at: newExpiresAt })
-    .eq('channel_id', channelId);
-
-  return tokens.access_token;
-}
 
 async function queryAnalytics(accessToken: string, startDate: string, endDate: string, videoIds: string, metrics: string) {
   const url = new URL('https://youtubeanalytics.googleapis.com/v2/reports');
@@ -84,19 +40,24 @@ async function queryTrafficSources(accessToken: string, startDate: string, endDa
   return fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
 }
 
-function aggregateTrafficSources(json: any): Map<string, { search: number; suggested: number }> {
+function aggregateTrafficSources(json: any): Map<string, { search: number; suggested: number; other: number }> {
   const headers: string[] = (json.columnHeaders || []).map((h: any) => h.name);
   const videoIdx = headers.indexOf('video');
   const sourceIdx = headers.indexOf('insightTrafficSourceType');
   const viewsIdx = headers.indexOf('views');
-  const map = new Map<string, { search: number; suggested: number }>();
+  const map = new Map<string, { search: number; suggested: number; other: number }>();
   for (const row of json.rows || []) {
     const videoId = row[videoIdx];
     const source = row[sourceIdx];
     const views = Number(row[viewsIdx] ?? 0);
-    const entry = map.get(videoId) ?? { search: 0, suggested: 0 };
+    const entry = map.get(videoId) ?? { search: 0, suggested: 0, other: 0 };
+    // Soma TODAS as linhas (não só busca/sugeridos) para que os percentuais no Dashboard
+    // sejam calculados sobre o total real de views — do contrário ficam inflados frente
+    // ao YouTube Studio, que reparte 100% entre todas as fontes (inclusive externo,
+    // notificações, playlists, páginas do canal etc).
     if (source === 'YT_SEARCH') entry.search += views;
     else if (source === 'SUGGESTED_VIDEO' || source === 'BROWSE_FEATURES') entry.suggested += views;
+    else entry.other += views;
     map.set(videoId, entry);
   }
   return map;
@@ -132,17 +93,10 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
 
   const baseData = rowsToMap(await resp.json());
 
-  // Impressões/CTR de miniatura usam nomes de metric próprios (adicionados pelo Google em
-  // jan/2026) e pertencem a um grupo separado das métricas básicas — por isso vão numa
-  // chamada isolada, e se ainda assim falharem (conta sem acesso a esse relatório), seguimos
-  // sem CTR em vez de derrubar a sincronização inteira.
-  let ctrData = new Map<string, Record<string, number>>();
-  const ctrResp = await queryAnalytics(accessToken, startDate, today, videoIds, 'videoThumbnailImpressions,videoThumbnailImpressionsClickRate');
-  if (ctrResp.ok) {
-    ctrData = rowsToMap(await ctrResp.json());
-  } else {
-    console.warn('[youtube-sync] impressões/CTR indisponíveis:', await ctrResp.text());
-  }
+  // CTR/impressões de miniatura NÃO existem na Analytics API interativa (a combinação
+  // sempre retorna "query not supported") — esses dados vêm do pipeline assíncrono da
+  // Reporting API (ver app/actions/youtube-reporting.ts), que grava direto em
+  // scheduled_videos.thumbnail_ctr/thumbnail_impressions.
 
   // Inscritos ganhos — chamada isolada por precaução, já que combinações de métricas
   // podem pertencer a grupos diferentes na Analytics API (mesmo padrão do CTR acima).
@@ -155,7 +109,7 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
   }
 
   // Fontes de tráfego (busca vs. sugeridos/navegação) — dimensão extra, então usa parsing próprio.
-  let trafficData = new Map<string, { search: number; suggested: number }>();
+  let trafficData = new Map<string, { search: number; suggested: number; other: number }>();
   const trafficResp = await queryTrafficSources(accessToken, startDate, today, videoIds);
   if (trafficResp.ok) {
     trafficData = aggregateTrafficSources(await trafficResp.json());
@@ -168,13 +122,11 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
     .filter((v) => baseData.has(v.youtube_video_id!))
     .map((video) => {
       const base = baseData.get(video.youtube_video_id!)!;
-      const ctr = ctrData.get(video.youtube_video_id!);
       const subs = subsData.get(video.youtube_video_id!);
       const traffic = trafficData.get(video.youtube_video_id!);
       const daysSincePublished = video.published_at
         ? Math.floor((now.getTime() - new Date(video.published_at).getTime()) / 86_400_000)
         : null;
-      const ctrFraction = ctr?.videoThumbnailImpressionsClickRate;
       return {
         scheduled_video_id: video.id,
         days_since_published: daysSincePublished,
@@ -183,11 +135,10 @@ export async function syncChannelMetrics(channelId: string): Promise<{ synced: n
         avg_view_duration_sec: base.averageViewDuration ?? 0,
         likes: base.likes ?? 0,
         comments: base.comments ?? 0,
-        impressions: ctr?.videoThumbnailImpressions ?? null,
-        ctr: ctrFraction !== undefined ? Number((ctrFraction * 100).toFixed(2)) : null,
         subscribers_gained: subs?.subscribersGained ?? null,
         traffic_search_views: traffic?.search ?? null,
         traffic_suggested_views: traffic?.suggested ?? null,
+        traffic_other_views: traffic?.other ?? null,
       };
     });
 

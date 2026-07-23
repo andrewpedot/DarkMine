@@ -36,6 +36,9 @@ export interface ScheduledVideo {
   status: VideoPipelineStatus
   youtube_video_id?: string
   published_at?: string
+  thumbnail_impressions?: number
+  thumbnail_ctr?: number
+  thumbnail_updated_at?: string
   created_at: string
   updated_at: string
 }
@@ -55,6 +58,7 @@ export interface VideoMetric {
   subscribers_gained?: number
   traffic_search_views?: number
   traffic_suggested_views?: number
+  traffic_other_views?: number
 }
 
 export interface ChannelCharacter {

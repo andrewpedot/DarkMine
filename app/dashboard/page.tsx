@@ -6,6 +6,7 @@ import { listScheduledVideos } from '@/app/actions/schedule';
 import { getChannelAuthStatus, disconnectChannel } from '@/app/actions/youtube-auth';
 import { listMetricsAtAge } from '@/app/actions/metrics';
 import { syncChannelMetrics } from '@/app/actions/youtube-sync';
+import { syncThumbnailReach } from '@/app/actions/youtube-reporting';
 import { StatTile } from '@/components/dashboard/StatTile';
 import { SelectMenu } from '@/components/ui/select-menu';
 import type { Channel, ScheduledVideo, VideoMetric } from '@/types/database';
@@ -73,14 +74,16 @@ export default function DashboardPage() {
 
   const selectedChannel = channels.find((c) => c.id === selectedChannelId);
 
-  const videoById = new Map(publishedVideos.map((v) => [v.id, v]));
-  const ranked = metrics
-    .map((m) => ({ metric: m, video: videoById.get(m.scheduled_video_id) }))
-    .filter((r) => r.video && r.metric.ctr != null)
-    .sort((a, b) => (b.metric.ctr ?? 0) - (a.metric.ctr ?? 0));
+  // CTR vem de scheduled_videos (pipeline assíncrono da Reporting API), não de video_metrics —
+  // é um valor cumulativo por vídeo que chega com ~24-48h de atraso, diferente das métricas
+  // pontuais que vêm da Analytics API interativa.
+  const ranked = publishedVideos
+    .filter((v) => v.thumbnail_ctr != null)
+    .sort((a, b) => (b.thumbnail_ctr ?? 0) - (a.thumbnail_ctr ?? 0));
 
-  const avgCtr = metrics.length
-    ? metrics.reduce((sum, m) => sum + (m.ctr ?? 0), 0) / metrics.filter((m) => m.ctr != null).length || null
+  const videosWithCtr = publishedVideos.filter((v) => v.thumbnail_ctr != null);
+  const avgCtr = videosWithCtr.length
+    ? videosWithCtr.reduce((sum, v) => sum + (v.thumbnail_ctr ?? 0), 0) / videosWithCtr.length
     : null;
   const avgViews = metrics.length
     ? Math.round(metrics.reduce((sum, m) => sum + (m.views ?? 0), 0) / metrics.length)
@@ -97,9 +100,13 @@ export default function DashboardPage() {
 
   const totalSearchViews = metrics.reduce((sum, m) => sum + (m.traffic_search_views ?? 0), 0);
   const totalSuggestedViews = metrics.reduce((sum, m) => sum + (m.traffic_suggested_views ?? 0), 0);
-  const totalTrafficViews = totalSearchViews + totalSuggestedViews;
+  const totalOtherViews = metrics.reduce((sum, m) => sum + (m.traffic_other_views ?? 0), 0);
+  // Percentuais calculados sobre o TOTAL de views rastreadas (busca + sugeridos + outras),
+  // não só busca+sugeridos — senão o percentual fica inflado frente ao YouTube Studio.
+  const totalTrafficViews = totalSearchViews + totalSuggestedViews + totalOtherViews;
   const searchPct = totalTrafficViews > 0 ? (totalSearchViews / totalTrafficViews) * 100 : null;
   const suggestedPct = totalTrafficViews > 0 ? (totalSuggestedViews / totalTrafficViews) * 100 : null;
+  const otherPct = totalTrafficViews > 0 ? (totalOtherViews / totalTrafficViews) * 100 : null;
 
   async function handleDisconnect() {
     if (!selectedChannelId) return;
@@ -113,12 +120,26 @@ export default function DashboardPage() {
     setSyncError('');
     setSyncMessage('');
     try {
-      const result = await syncChannelMetrics(selectedChannelId);
-      setSyncMessage(
+      const [result, reachResult] = await Promise.all([
+        syncChannelMetrics(selectedChannelId),
+        syncThumbnailReach(selectedChannelId).catch((e) => {
+          console.warn('[dashboard] sincronização de CTR falhou:', e.message);
+          return null;
+        }),
+      ]);
+      const parts = [
         result.synced > 0
-          ? `Sincronizado: ${result.synced} vídeo${result.synced !== 1 ? 's' : ''} atualizado${result.synced !== 1 ? 's' : ''}.`
-          : 'Nenhum vídeo publicado com URL do YouTube para sincronizar.'
-      );
+          ? `${result.synced} vídeo${result.synced !== 1 ? 's' : ''} atualizado${result.synced !== 1 ? 's' : ''}`
+          : 'nenhum vídeo com URL do YouTube para sincronizar',
+      ];
+      if (reachResult) {
+        parts.push(
+          reachResult.videosUpdated > 0
+            ? `CTR atualizado em ${reachResult.videosUpdated} vídeo${reachResult.videosUpdated !== 1 ? 's' : ''}`
+            : 'nenhum relatório novo de CTR disponível ainda (a Reporting API leva ~24-48h)'
+        );
+      }
+      setSyncMessage(parts.join(' — '));
       await loadChannelData(selectedChannelId, targetDays);
     } catch (e: any) {
       setSyncError(e.message || 'Erro ao sincronizar com o YouTube.');
@@ -238,10 +259,12 @@ export default function DashboardPage() {
                     <div className="flex h-2 rounded-full overflow-hidden bg-white/5">
                       <div className="bg-indigo-500" style={{ width: `${searchPct}%` }} />
                       <div className="bg-cyan-500" style={{ width: `${suggestedPct ?? 0}%` }} />
+                      <div className="bg-gray-600" style={{ width: `${otherPct ?? 0}%` }} />
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-indigo-400">Busca {searchPct.toFixed(0)}%</span>
                       <span className="text-cyan-400">Sugeridos {(suggestedPct ?? 0).toFixed(0)}%</span>
+                      <span className="text-gray-500">Outras {(otherPct ?? 0).toFixed(0)}%</span>
                     </div>
                   </>
                 )}
@@ -268,10 +291,10 @@ export default function DashboardPage() {
                   {ranked.slice(0, 3).length === 0 ? (
                     <p className="text-xs text-gray-600 py-4 text-center">Ainda sem dados suficientes.</p>
                   ) : (
-                    ranked.slice(0, 3).map((r) => (
-                      <div key={r.metric.id} className="flex items-center justify-between text-xs gap-2">
-                        <span className="text-gray-300 truncate">{r.video?.title}</span>
-                        <span className="text-emerald-400 font-mono shrink-0">{formatPct(r.metric.ctr ?? null)}</span>
+                    ranked.slice(0, 3).map((v) => (
+                      <div key={v.id} className="flex items-center justify-between text-xs gap-2">
+                        <span className="text-gray-300 truncate">{v.title}</span>
+                        <span className="text-emerald-400 font-mono shrink-0">{formatPct(v.thumbnail_ctr ?? null)}</span>
                       </div>
                     ))
                   )}
@@ -286,10 +309,10 @@ export default function DashboardPage() {
                   {ranked.slice(-3).length === 0 ? (
                     <p className="text-xs text-gray-600 py-4 text-center">Ainda sem dados suficientes.</p>
                   ) : (
-                    [...ranked.slice(-3)].reverse().map((r) => (
-                      <div key={r.metric.id} className="flex items-center justify-between text-xs gap-2">
-                        <span className="text-gray-300 truncate">{r.video?.title}</span>
-                        <span className="text-red-400 font-mono shrink-0">{formatPct(r.metric.ctr ?? null)}</span>
+                    [...ranked.slice(-3)].reverse().map((v) => (
+                      <div key={v.id} className="flex items-center justify-between text-xs gap-2">
+                        <span className="text-gray-300 truncate">{v.title}</span>
+                        <span className="text-red-400 font-mono shrink-0">{formatPct(v.thumbnail_ctr ?? null)}</span>
                       </div>
                     ))
                   )}
@@ -298,8 +321,14 @@ export default function DashboardPage() {
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/5">
+              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-sm font-bold text-white">Vídeos publicados</h3>
+                <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                  <span>🟢 retenção acima da média</span>
+                  <span>🟡 na média</span>
+                  <span>🔴 abaixo da média</span>
+                  <span>⚪ sem dados</span>
+                </div>
               </div>
               {publishedVideos.length === 0 ? (
                 <div className="p-8 flex items-center justify-center text-sm text-gray-600">
@@ -329,7 +358,7 @@ export default function DashboardPage() {
                             {v.published_at ? new Date(v.published_at).toLocaleDateString('pt-BR') : '—'}
                           </td>
                           <td className="px-5 py-2.5 text-right font-mono">{formatNumber(m?.views ?? null)}</td>
-                          <td className="px-5 py-2.5 text-right font-mono">{formatPct(m?.ctr ?? null)}</td>
+                          <td className="px-5 py-2.5 text-right font-mono">{formatPct(v.thumbnail_ctr ?? null)}</td>
                         </tr>
                       );
                     })}

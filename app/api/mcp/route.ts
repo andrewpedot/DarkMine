@@ -222,12 +222,17 @@ export async function POST(req: NextRequest) {
   return handleMcp(req);
 }
 
-// GET não expõe nada sensível neste transporte stateless (não há sessão/stream real por trás
-// dele) — fica sem auth de propósito, porque alguns clientes MCP (ex.: Claude Desktop) fazem
-// um GET simples de "health check" antes do handshake real e sem enviar o token.
-export async function GET() {
-  return new Response(JSON.stringify({ ok: true, server: 'darkmine' }), {
-    status: 200,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-  });
+// GET tem dois usos bem diferentes: (1) um "health check" simples sem token, que alguns
+// clientes MCP fazem antes do handshake real — responde 200 direto, sem expor nada sensível;
+// (2) o GET real do protocolo MCP (autenticado), usado pelo cliente pra abrir o stream SSE de
+// notificações depois do initialize — esse precisa ir pro transporte de verdade, não pra uma
+// resposta estática, senão quebra a conexão que o cliente espera manter aberta.
+export async function GET(req: NextRequest) {
+  if (!checkAuth(req)) {
+    return new Response(JSON.stringify({ ok: true, server: 'darkmine' }), {
+      status: 200,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+  return handleMcp(req);
 }

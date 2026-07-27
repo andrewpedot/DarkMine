@@ -37,18 +37,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Extensão Chrome DarkClip — libera SOMENTE as rotas de mídia que ela usa (nunca o
-  // app inteiro). O token vem de env var (não hardcoded) para não ficar público no histórico do Git.
-  const isMediaRoute = request.nextUrl.pathname.startsWith('/api/media/');
+  // Extensão Chrome DarkClip — libera SOMENTE as duas rotas que ela de fato chama (clip e
+  // download), nunca /api/media/search (usada pela página Dark Mídia, protegida por login
+  // normal) nem o app inteiro. Token vem de env var (não hardcoded) para não ficar público
+  // no histórico do Git.
+  const isExtensionRoute = request.nextUrl.pathname === '/api/media/clip' || request.nextUrl.pathname === '/api/media/download';
   const extensionToken = process.env.DARKCLIP_EXTENSION_TOKEN;
-  const isExtension = isMediaRoute && !!extensionToken && (
+  const isExtension = isExtensionRoute && !!extensionToken && (
     request.headers.get('x-extension-token') === extensionToken
     || request.nextUrl.searchParams.get('_t') === extensionToken
   );
   const isCORSPreflight = request.method === 'OPTIONS';
 
   // Responder preflight imediatamente (sem verificar auth) — só para as rotas de mídia da extensão
-  if (isCORSPreflight && isMediaRoute) {
+  if (isCORSPreflight && isExtensionRoute) {
     return new NextResponse(null, {
       status: 204,
       headers: {

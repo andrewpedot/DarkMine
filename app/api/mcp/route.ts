@@ -19,9 +19,16 @@ function safeCompare(a: string, b: string): boolean {
 function checkAuth(req: NextRequest): boolean {
   const secret = process.env.MCP_SHARED_SECRET;
   if (!secret) return false;
+
   const header = req.headers.get('authorization');
-  if (!header) return false;
-  return safeCompare(header, `Bearer ${secret}`);
+  if (header && safeCompare(header, `Bearer ${secret}`)) return true;
+
+  // Alguns clientes MCP (ex.: Claude Desktop) não têm campo pra header customizado
+  // no conector — só URL. Aceita o token via query string como alternativa.
+  const tokenParam = req.nextUrl.searchParams.get('token');
+  if (tokenParam && safeCompare(tokenParam, secret)) return true;
+
+  return false;
 }
 
 function textResult(payload: unknown, isError = false) {

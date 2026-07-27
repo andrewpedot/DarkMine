@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   # O Netlify Next.js Runtime configura automaticamente o diretório de publicação (.next)
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"

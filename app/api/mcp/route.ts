@@ -201,7 +201,21 @@ async function handleMcp(req: NextRequest): Promise<Response> {
   await server.connect(transport);
   const response = await transport.handleRequest(req);
   await server.close();
-  return response;
+
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', '*');
+  return new Response(response.body, { status: response.status, headers });
+}
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version',
+  'Access-Control-Max-Age': '86400',
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export async function POST(req: NextRequest) {
@@ -209,6 +223,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) return new Response('Unauthorized', { status: 401 });
-  return new Response('Method not supported (stateless server — use POST)', { status: 405 });
+  if (!checkAuth(req)) {
+    return new Response('Unauthorized', { status: 401, headers: CORS_HEADERS });
+  }
+  return new Response('Method not supported (stateless server — use POST)', { status: 405, headers: CORS_HEADERS });
 }

@@ -4,9 +4,21 @@ import path from 'path';
 
 export async function POST(req: NextRequest) {
   try {
+    const token = process.env.DARKCLIP_EXTENSION_TOKEN;
+    if (!token || req.headers.get('x-extension-token') !== token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { url, filename, destDir } = await req.json();
     if (!url || !filename || !destDir) {
       return NextResponse.json({ error: 'url, filename e destDir são obrigatórios' }, { status: 400 });
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      return NextResponse.json({ error: 'url deve ser http(s)' }, { status: 400 });
+    }
+    // filename não pode conter separadores de caminho — evita escapar de destDir via ../
+    if (filename !== path.basename(filename)) {
+      return NextResponse.json({ error: 'filename inválido' }, { status: 400 });
     }
 
     // Garante que o diretório existe

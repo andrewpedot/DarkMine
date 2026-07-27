@@ -37,14 +37,18 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Rotas públicas que não precisam de autenticação
-  // Extensão Chrome DarkClip — liberar CORS preflight e requisições autenticadas
-  const isExtension   = request.headers.get('x-extension-token') === 'darkclip-local'
-                     || request.nextUrl.searchParams.get('_t') === 'darkclip-local';
+  // Extensão Chrome DarkClip — libera SOMENTE as rotas de mídia que ela usa (nunca o
+  // app inteiro). O token vem de env var (não hardcoded) para não ficar público no histórico do Git.
+  const isMediaRoute = request.nextUrl.pathname.startsWith('/api/media/');
+  const extensionToken = process.env.DARKCLIP_EXTENSION_TOKEN;
+  const isExtension = isMediaRoute && !!extensionToken && (
+    request.headers.get('x-extension-token') === extensionToken
+    || request.nextUrl.searchParams.get('_t') === extensionToken
+  );
   const isCORSPreflight = request.method === 'OPTIONS';
 
-  // Responder preflight imediatamente (sem verificar auth)
-  if (isCORSPreflight) {
+  // Responder preflight imediatamente (sem verificar auth) — só para as rotas de mídia da extensão
+  if (isCORSPreflight && isMediaRoute) {
     return new NextResponse(null, {
       status: 204,
       headers: {
@@ -56,7 +60,7 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
-  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/debug') || request.nextUrl.pathname.startsWith('/api/mcp') || isExtension;
+  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/mcp') || isExtension;
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
   if (!user && !isPublicRoute) {

@@ -42,7 +42,11 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, X-Extension-Token',
 };
 
-const EXT_TOKEN = 'darkclip-local';
+const EXT_TOKEN = process.env.DARKCLIP_EXTENSION_TOKEN;
+
+// IDs de vídeo do YouTube são sempre 11 caracteres alfanuméricos (+ _ e -) — validar
+// evita path traversal no nome do arquivo temporário montado a partir do youtubeId.
+const YOUTUBE_ID_RE = /^[\w-]{11}$/;
 
 const WINGET_BASE  = 'C:\\Users\\André\\AppData\\Local\\Microsoft\\WinGet\\Packages';
 const FFMPEG_BIN   = `${WINGET_BASE}\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.1-full_build\\bin`;
@@ -65,6 +69,7 @@ function errResponse(status: number, message: string) {
 
 function validate(youtubeId: string, startTime: number, endTime: number) {
   if (!youtubeId)                                   return 'youtubeId é obrigatório';
+  if (!YOUTUBE_ID_RE.test(youtubeId))               return 'youtubeId inválido';
   if (isNaN(startTime) || isNaN(endTime))           return 'startTime e endTime inválidos';
   if (endTime <= startTime)                         return 'endTime deve ser maior que startTime';
   if (endTime - startTime > 60)                     return 'Máximo de 60 segundos por clipe';
@@ -140,11 +145,12 @@ async function runYtDlp(youtubeId: string, startTime: number, endTime: number, q
 export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
 
-  if (p.get('_t') !== EXT_TOKEN) return errResponse(401, 'Unauthorized');
+  if (!EXT_TOKEN || p.get('_t') !== EXT_TOKEN) return errResponse(401, 'Unauthorized');
 
   // Modo 1: serve arquivo já preparado
   const clipId = p.get('clipId');
   if (clipId) {
+    if (!/^[\w-]+_\d+_\d+$/.test(clipId)) return errResponse(400, 'clipId inválido');
     const outFile = path.join(os.tmpdir(), `darkclip_${clipId}.mp4`);
     if (!fs.existsSync(outFile)) return errResponse(404, 'Clipe não encontrado ou expirado');
 
@@ -201,6 +207,10 @@ export async function GET(req: NextRequest) {
 // background.js usa essa URL com chrome.downloads — sem problemas de blob/dataURL.
 export async function POST(req: NextRequest) {
   try {
+    if (!EXT_TOKEN || req.headers.get('x-extension-token') !== EXT_TOKEN) {
+      return errResponse(401, 'Unauthorized');
+    }
+
     const body = await req.json();
     const { youtubeId, startTime, endTime, quality = '1080' } = body;
 

@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyState } from '@/lib/oauth-state';
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
-  const channelId = request.nextUrl.searchParams.get('state');
+  const state = request.nextUrl.searchParams.get('state');
   const oauthError = request.nextUrl.searchParams.get('error');
 
   if (oauthError) {
     return NextResponse.redirect(new URL(`/dashboard?youtube_error=${oauthError}`, request.url));
   }
-  if (!code || !channelId) {
+  if (!code || !state) {
     return NextResponse.json({ error: 'code e state são obrigatórios' }, { status: 400 });
+  }
+
+  // state é assinado com HMAC em /api/auth/youtube — impede que alguém troque um `code`
+  // próprio contra um channelId de outra pessoa (CSRF de vinculação de conta).
+  const channelId = verifyState(state);
+  if (!channelId) {
+    return NextResponse.json({ error: 'state inválido ou adulterado' }, { status: 400 });
   }
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;

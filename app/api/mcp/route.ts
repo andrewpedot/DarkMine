@@ -2,16 +2,26 @@ import { NextRequest } from 'next/server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
+import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function safeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
 function checkAuth(req: NextRequest): boolean {
   const secret = process.env.MCP_SHARED_SECRET;
   if (!secret) return false;
-  return req.headers.get('authorization') === `Bearer ${secret}`;
+  const header = req.headers.get('authorization');
+  if (!header) return false;
+  return safeCompare(header, `Bearer ${secret}`);
 }
 
 function textResult(payload: unknown, isError = false) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { signState } from '@/lib/oauth-state';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/yt-analytics.readonly',
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
   authUrl.searchParams.set('scope', SCOPES);
   authUrl.searchParams.set('access_type', 'offline');
   authUrl.searchParams.set('prompt', 'consent');
-  authUrl.searchParams.set('state', channelId);
+  authUrl.searchParams.set('state', signState(channelId));
 
   return NextResponse.redirect(authUrl.toString());
 }

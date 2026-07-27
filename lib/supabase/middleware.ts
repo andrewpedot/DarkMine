@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
-  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/debug') || isExtension;
+  const isPublicRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/api/debug') || request.nextUrl.pathname.startsWith('/api/mcp') || isExtension;
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
 
   if (!user && !isPublicRoute) {

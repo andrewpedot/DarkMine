@@ -222,9 +222,12 @@ export async function POST(req: NextRequest) {
   return handleMcp(req);
 }
 
-export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return new Response('Unauthorized', { status: 401, headers: CORS_HEADERS });
-  }
-  return new Response('Method not supported (stateless server — use POST)', { status: 405, headers: CORS_HEADERS });
+// GET não expõe nada sensível neste transporte stateless (não há sessão/stream real por trás
+// dele) — fica sem auth de propósito, porque alguns clientes MCP (ex.: Claude Desktop) fazem
+// um GET simples de "health check" antes do handshake real e sem enviar o token.
+export async function GET() {
+  return new Response(JSON.stringify({ ok: true, server: 'darkmine' }), {
+    status: 200,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  });
 }

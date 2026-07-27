@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.95.0",
     "@base-ui/react": "^1.4.1",
     "@hello-pangea/dnd": "^18.0.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-toast": "^1.2.15",
     "@remotion/cli": "^4.0.455",
@@ -30,7 +31,8 @@
     "shadcn": "^4.6.0",
     "ssh2": "^1.17.0",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20",

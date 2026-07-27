@@ -222,17 +222,14 @@ export async function POST(req: NextRequest) {
   return handleMcp(req);
 }
 
-// GET tem dois usos bem diferentes: (1) um "health check" simples sem token, que alguns
-// clientes MCP fazem antes do handshake real — responde 200 direto, sem expor nada sensível;
-// (2) o GET real do protocolo MCP (autenticado), usado pelo cliente pra abrir o stream SSE de
-// notificações depois do initialize — esse precisa ir pro transporte de verdade, não pra uma
-// resposta estática, senão quebra a conexão que o cliente espera manter aberta.
+// Nenhuma das nossas tools precisa de notificação assíncrona do servidor pro cliente — todo
+// tool call é request/response síncrono via POST. Por isso o GET (que no protocolo MCP serve
+// pra abrir um stream SSE de notificações) sempre responde rápido e fecha, em vez de tentar
+// manter um stream real aberto — isso já causou um cliente (Cowork) travar por 180s esperando
+// eventos que nunca viriam.
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return new Response(JSON.stringify({ ok: true, server: 'darkmine' }), {
-      status: 200,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    });
-  }
-  return handleMcp(req);
+  return new Response(JSON.stringify({ ok: true, server: 'darkmine', authenticated: checkAuth(req) }), {
+    status: 200,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  });
 }

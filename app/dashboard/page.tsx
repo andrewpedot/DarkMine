@@ -122,22 +122,23 @@ export default function DashboardPage() {
     try {
       const [result, reachResult] = await Promise.all([
         syncChannelMetrics(selectedChannelId),
-        syncThumbnailReach(selectedChannelId).catch((e) => {
-          console.warn('[dashboard] sincronização de CTR falhou:', e.message);
-          return null;
-        }),
+        syncThumbnailReach(selectedChannelId)
+          .then((r) => ({ ok: true as const, ...r }))
+          .catch((e) => ({ ok: false as const, error: e.message || 'Erro desconhecido' })),
       ]);
       const parts = [
         result.synced > 0
           ? `${result.synced} vídeo${result.synced !== 1 ? 's' : ''} atualizado${result.synced !== 1 ? 's' : ''}`
           : 'nenhum vídeo com URL do YouTube para sincronizar',
       ];
-      if (reachResult) {
+      if (reachResult.ok) {
         parts.push(
           reachResult.videosUpdated > 0
             ? `CTR atualizado em ${reachResult.videosUpdated} vídeo${reachResult.videosUpdated !== 1 ? 's' : ''}`
             : 'nenhum relatório novo de CTR disponível ainda (a Reporting API leva ~24-48h)'
         );
+      } else {
+        parts.push(`falha ao sincronizar CTR: ${reachResult.error}`);
       }
       setSyncMessage(parts.join(' — '));
       await loadChannelData(selectedChannelId, targetDays);
